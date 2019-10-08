@@ -1,7 +1,7 @@
 import argparse
 import sys
 
-sys.path.append('../../Utils/Python')
+sys.path.append('../../')
 
 import tensorflow as tf
 
@@ -10,7 +10,7 @@ tf.compat.v1.disable_eager_execution()
 from torchtext.data import Iterator
 
 from model import get_model
-from Utils.data.ptb import train_dataset, valid_dataset, test_dataset, vocab
+from utils.data.ptb import train_dataset, valid_dataset, test_dataset, vocab
 
 
 def main():
