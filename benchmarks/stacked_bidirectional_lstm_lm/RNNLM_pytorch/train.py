@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append('../../Utils/Python')
+sys.path.append('../../')
 
 import argparse
 import torch
@@ -10,7 +10,7 @@ from torch.nn import CrossEntropyLoss
 from torchtext.data import Iterator
 
 from model import RNNModel
-from Utils.data.ptb import train_dataset, valid_dataset, test_dataset, vocab
+from utils.data.ptb import train_dataset, valid_dataset, test_dataset, vocab
 
 ntokens = len(vocab.itos)
 criterion = CrossEntropyLoss()
