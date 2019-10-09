@@ -7,6 +7,30 @@ In this benchmark, we use/implement different kinds of LSTM:
 - DefaultCellLSTM: Explicit loop with torch.nn.LSTMCell
 - FineGrainedCellLSTM: Explicit loop with FineGrainedCell
 
+# How to use
+
+```
+usage: train.py --lstm {LSTM,DefaultCellLSTM,FineGrainedCellLSTM}
+                --num-layers NUM_LAYERS
+                [--hidden-size HIDDEN_SIZE]
+                [--cuda]
+                [--bidirectional]
+                [--batch-size BATCH_SIZE]
+
+                [--epoch EPOCH]
+                [--lr LR]
+                [--embedding-size EMBEDDING_SIZE]
+
+                [--log-interval LOG_INTERVAL]
+                [--seed SEED]
+```
+
+For Example
+
+```
+python3 train.py --lstm=FineGrainedCellLSTM --num-layers=3 --bidirectional --cuda
+```
+
 # FineGrainedCell
 
 $ \begin{array}{ll}
