@@ -132,8 +132,10 @@ class LoopVisibleLSTM(ABC, Module):
             forward_output.append(h_forwards[-1])
 
         if self.bidirectional:
+
             # shape of `backward_output` is (seq_len, batch_size, hidden_size)
             backward_output = []
+
             for x_t in reversed(input):
                 # shape of `x` is (batch_size, hidden_size)
                 x = self.backward_init_input(x_t)
@@ -142,7 +144,8 @@ class LoopVisibleLSTM(ABC, Module):
                     # shape of `h`/`c` is (batch_size, hidden_size)
                     h_backwards[i], c_backwards[i] = backward_cell(x, (
                         h_backwards[i], c_backwards[i]))
-                backward_output.append(h_forwards[-1])
+                    x = h_backwards[i]
+                backward_output.append(h_backwards[-1])
 
             output = torch.stack(list(map(lambda x: torch.cat((x[0], x[1]), 1),
                                           zip(forward_output,
