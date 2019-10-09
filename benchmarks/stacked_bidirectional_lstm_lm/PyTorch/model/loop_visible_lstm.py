@@ -68,30 +68,39 @@ class LSTMCell(Module):
 
 
 class LoopVisibleLSTM(ABC, Module):
-    def __init__(self, input_size: int, hidden_size: int, bidirectional: bool):
+    def __init__(self, input_size: int, hidden_size: int, num_layers: int,
+                 bidirectional: bool):
         super(LoopVisibleLSTM, self).__init__()
         self.cell = self.get_cell(input_size, hidden_size)
 
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.num_layers = num_layers
         self.bidirectional = bidirectional
 
         self.k = 1 / hidden_size
 
-        self.register_buffer('h', torch.Tensor())
-        self.register_buffer('c', torch.Tensor())
+        self.register_buffer('h_forward', torch.Tensor())
+        self.register_buffer('c_forward', torch.Tensor())
+        self.register_buffer('h_backward', torch.Tensor())
+        self.register_buffer('c_backward', torch.Tensor())
 
     @abstractmethod
     def get_cell(self, input_size: int, hidden_size: int):
         pass
 
-    def forward(self, input: Tensor) -> Tuple[Tensor, Tuple[Tensor, Tensor]]:
+    def forward(self, input: Tensor) -> Tuple[Tensor, None]:
         batch_size = input.size(1)
 
-        self.h = self.h.new_empty(batch_size, self.hidden_size)
-        self.c = self.c.new_empty(batch_size, self.hidden_size)
-        uniform_(self.h, -sqrt(self.k), sqrt(self.k))
-        uniform_(self.c, -sqrt(self.k), sqrt(self.k))
+        self.h_forward = self.h_forward.new_empty(batch_size, self.hidden_size)
+        self.c_forward = self.c_forward.new_empty(batch_size, self.hidden_size)
+        self.h_backward = self.h_backward.new_empty(batch_size, self.hidden_size)
+        self.c_backward = self.c_backward.new_empty(batch_size, self.hidden_size)
+
+        uniform_(self.h_forward, -sqrt(self.k), sqrt(self.k))
+        uniform_(self.c_forward, -sqrt(self.k), sqrt(self.k))
+        uniform_(self.h_backward, -sqrt(self.k), sqrt(self.k))
+        uniform_(self.c_backward, -sqrt(self.k), sqrt(self.k))
 
         # shape of `forward_output` is (seq_len, batch_size, hidden_size)
         forward_output = []
@@ -99,16 +108,18 @@ class LoopVisibleLSTM(ABC, Module):
         # shape of `x_t` is (batch_size, input_size)
         for x_t in input:
             # shape of `h`/`c` is (batch_size, hidden_size)
-            self.h, self.c = self.cell(x_t, (self.h, self.c))
-            forward_output.append(self.h)
+            self.h_forward, self.c_forward = self.cell(x_t, (
+                self.h_forward, self.c_forward))
+            forward_output.append(self.h_forward)
 
         if self.bidirectional:
             # shape of `backward_output` is (seq_len, batch_size, hidden_size)
             backward_output = []
             for x_t in reversed(input):
                 # shape of `h`/`c` is (batch_size, hidden_size)
-                self.h, self.c = self.cell(x_t, (self.h, self.c))
-                backward_output.append(self.h)
+                self.h_backward, self.c_backward = self.cell(x_t, (
+                    self.h_backward, self.c_backward))
+                backward_output.append(self.h_backward)
 
             output = torch.stack(list(map(lambda x: torch.cat((x[0], x[1]), 1),
                                           zip(forward_output,
@@ -118,7 +129,7 @@ class LoopVisibleLSTM(ABC, Module):
             output = torch.stack(forward_output, dim=0)
 
         # shape of `output` is (seq_len, batch_size, num_directions*hidden_size)
-        return output, (self.h, self.c)
+        return output, None
 
 
 class DefaultCellLSTM(LoopVisibleLSTM):

@@ -9,7 +9,8 @@ class LanguageModel(Module):
                  hidden_size: int, bidirectional: bool):
         super(LanguageModel, self).__init__()
         self.encoder = Embedding(vocab_size, input_size)
-        self.lstm = lstm(input_size, hidden_size, bidirectional=bidirectional)
+        self.lstm = lstm(input_size, hidden_size, num_layers=2,
+                         bidirectional=bidirectional)
         if bidirectional:
             self.decoder = Linear(2 * hidden_size, vocab_size)
         else:
