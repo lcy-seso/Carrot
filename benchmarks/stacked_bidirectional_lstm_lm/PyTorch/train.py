@@ -53,6 +53,7 @@ def main():
     parser.add_argument('--lstm', type=str, required=True,
                         choices=['LSTM', 'DefaultCellLSTM',
                                  'FineGrainedCellLSTM'])
+    parser.add_argument('--bidirectional', action='store_true')
 
     parser.add_argument('--batch-size', type=int, default=100)
     parser.add_argument('--epoch', type=int, default=10)
@@ -87,7 +88,7 @@ def main():
         raise ValueError("Unsupported LSTM type %s" % args.lstm)
 
     model = LanguageModel(lstm, vocab_size, args.embedding_size,
-                          args.hidden_size, True).to(device)
+                          args.hidden_size, args.bidirectional).to(device)
 
     optimizer = Adam(model.parameters(), lr=args.lr)
 
