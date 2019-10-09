@@ -3,7 +3,7 @@ from math import sqrt
 
 import torch
 from torch import empty, sigmoid, tanh, Tensor
-from torch.nn import Module, Parameter
+from torch.nn import Linear, Module, ModuleList, Parameter
 from torch.nn.init import uniform_
 from typing import Tuple
 
@@ -71,10 +71,18 @@ class LoopVisibleLSTM(ABC, Module):
     def __init__(self, input_size: int, hidden_size: int, num_layers: int,
                  bidirectional: bool):
         super(LoopVisibleLSTM, self).__init__()
-        self.forward_cell = self.get_cell(input_size, hidden_size)
+
+        self.forward_init_input = Linear(input_size, hidden_size)
+        self.backward_init_input = Linear(input_size, hidden_size)
+
+        self.forward_cells = ModuleList(
+            [self.get_cell(hidden_size, hidden_size) for _ in
+             range(num_layers)])
 
         if bidirectional:
-            self.backward_cell = self.get_cell(input_size, hidden_size)
+            self.backward_cells = ModuleList(
+                [self.get_cell(hidden_size, hidden_size) for _
+                 in range(num_layers)])
 
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -83,10 +91,10 @@ class LoopVisibleLSTM(ABC, Module):
 
         self.k = 1 / hidden_size
 
-        self.register_buffer('h_forward', torch.Tensor())
-        self.register_buffer('c_forward', torch.Tensor())
-        self.register_buffer('h_backward', torch.Tensor())
-        self.register_buffer('c_backward', torch.Tensor())
+        self.h_forward = Parameter(torch.Tensor())
+        self.c_forward = Parameter(torch.Tensor())
+        self.h_backward = Parameter(torch.Tensor())
+        self.c_backward = Parameter(torch.Tensor())
 
     @abstractmethod
     def get_cell(self, input_size: int, hidden_size: int):
@@ -95,36 +103,46 @@ class LoopVisibleLSTM(ABC, Module):
     def forward(self, input: Tensor) -> Tuple[Tensor, None]:
         batch_size = input.size(1)
 
-        self.h_forward = self.h_forward.new_empty(batch_size, self.hidden_size)
-        self.c_forward = self.c_forward.new_empty(batch_size, self.hidden_size)
-        self.h_backward = self.h_backward.new_empty(batch_size,
-                                                    self.hidden_size)
-        self.c_backward = self.c_backward.new_empty(batch_size,
-                                                    self.hidden_size)
+        h_forwards = [self.h_forward.new_empty(batch_size, self.hidden_size)
+                      for _ in range(self.num_layers)]
+        c_forwards = [self.c_forward.new_empty(batch_size, self.hidden_size)
+                      for _ in range(self.num_layers)]
+        h_backwards = [self.h_backward.new_empty(batch_size, self.hidden_size)
+                       for _ in range(self.num_layers)]
+        c_backwards = [self.c_backward.new_empty(batch_size, self.hidden_size)
+                       for _ in range(self.num_layers)]
 
-        uniform_(self.h_forward, -sqrt(self.k), sqrt(self.k))
-        uniform_(self.c_forward, -sqrt(self.k), sqrt(self.k))
-        uniform_(self.h_backward, -sqrt(self.k), sqrt(self.k))
-        uniform_(self.c_backward, -sqrt(self.k), sqrt(self.k))
+        for parameters in [h_forwards, c_forwards, h_backwards, c_backwards]:
+            for parameter in parameters:
+                uniform_(parameter, -sqrt(self.k), sqrt(self.k))
 
         # shape of `forward_output` is (seq_len, batch_size, hidden_size)
         forward_output = []
 
         # shape of `x_t` is (batch_size, input_size)
         for x_t in input:
-            # shape of `h`/`c` is (batch_size, hidden_size)
-            self.h_forward, self.c_forward = self.forward_cell(x_t, (
-                self.h_forward, self.c_forward))
-            forward_output.append(self.h_forward)
+            # shape of `x` is (batch_size, hidden_size)
+            x = self.forward_init_input(x_t)
+
+            for i, forward_cell in enumerate(self.forward_cells):
+                # shape of `h`/`c` is (batch_size, hidden_size)
+                h_forwards[i], c_forwards[i] = forward_cell(x, (
+                    h_forwards[i], c_forwards[i]))
+                x = h_forwards[i]
+            forward_output.append(h_forwards[-1])
 
         if self.bidirectional:
             # shape of `backward_output` is (seq_len, batch_size, hidden_size)
             backward_output = []
             for x_t in reversed(input):
-                # shape of `h`/`c` is (batch_size, hidden_size)
-                self.h_backward, self.c_backward = self.backward_cell(x_t, (
-                    self.h_backward, self.c_backward))
-                backward_output.append(self.h_backward)
+                # shape of `x` is (batch_size, hidden_size)
+                x = self.backward_init_input(x_t)
+
+                for i, backward_cell in enumerate(self.backward_cells):
+                    # shape of `h`/`c` is (batch_size, hidden_size)
+                    h_backwards[i], c_backwards[i] = backward_cell(x, (
+                        h_backwards[i], c_backwards[i]))
+                backward_output.append(h_forwards[-1])
 
             output = torch.stack(list(map(lambda x: torch.cat((x[0], x[1]), 1),
                                           zip(forward_output,
