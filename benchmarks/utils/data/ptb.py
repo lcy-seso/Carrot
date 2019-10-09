@@ -92,3 +92,4 @@ train_dataset, valid_dataset, test_dataset = PennTreebank.splits(TEXT)
 TEXT.build_vocab(train_dataset)
 
 vocab = TEXT.vocab
+vocab_size = len(vocab.itos)
