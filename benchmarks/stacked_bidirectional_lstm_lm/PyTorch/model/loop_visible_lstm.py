@@ -71,7 +71,10 @@ class LoopVisibleLSTM(ABC, Module):
     def __init__(self, input_size: int, hidden_size: int, num_layers: int,
                  bidirectional: bool):
         super(LoopVisibleLSTM, self).__init__()
-        self.cell = self.get_cell(input_size, hidden_size)
+        self.forward_cell = self.get_cell(input_size, hidden_size)
+
+        if bidirectional:
+            self.backward_cell = self.get_cell(input_size, hidden_size)
 
         self.input_size = input_size
         self.hidden_size = hidden_size
@@ -94,8 +97,10 @@ class LoopVisibleLSTM(ABC, Module):
 
         self.h_forward = self.h_forward.new_empty(batch_size, self.hidden_size)
         self.c_forward = self.c_forward.new_empty(batch_size, self.hidden_size)
-        self.h_backward = self.h_backward.new_empty(batch_size, self.hidden_size)
-        self.c_backward = self.c_backward.new_empty(batch_size, self.hidden_size)
+        self.h_backward = self.h_backward.new_empty(batch_size,
+                                                    self.hidden_size)
+        self.c_backward = self.c_backward.new_empty(batch_size,
+                                                    self.hidden_size)
 
         uniform_(self.h_forward, -sqrt(self.k), sqrt(self.k))
         uniform_(self.c_forward, -sqrt(self.k), sqrt(self.k))
@@ -108,7 +113,7 @@ class LoopVisibleLSTM(ABC, Module):
         # shape of `x_t` is (batch_size, input_size)
         for x_t in input:
             # shape of `h`/`c` is (batch_size, hidden_size)
-            self.h_forward, self.c_forward = self.cell(x_t, (
+            self.h_forward, self.c_forward = self.forward_cell(x_t, (
                 self.h_forward, self.c_forward))
             forward_output.append(self.h_forward)
 
@@ -117,7 +122,7 @@ class LoopVisibleLSTM(ABC, Module):
             backward_output = []
             for x_t in reversed(input):
                 # shape of `h`/`c` is (batch_size, hidden_size)
-                self.h_backward, self.c_backward = self.cell(x_t, (
+                self.h_backward, self.c_backward = self.backward_cell(x_t, (
                     self.h_backward, self.c_backward))
                 backward_output.append(self.h_backward)
 
