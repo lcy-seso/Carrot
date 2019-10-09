@@ -68,11 +68,14 @@ class LSTMCell(Module):
 
 
 class LoopVisibleLSTM(ABC, Module):
-    def __init__(self, input_size: int, hidden_size: int):
+    def __init__(self, input_size: int, hidden_size: int, bidirectional: bool):
         super(LoopVisibleLSTM, self).__init__()
         self.cell = self.get_cell(input_size, hidden_size)
+
         self.input_size = input_size
         self.hidden_size = hidden_size
+        self.bidirectional = bidirectional
+
         self.k = 1 / hidden_size
 
         self.register_buffer('h', torch.Tensor())
@@ -90,15 +93,31 @@ class LoopVisibleLSTM(ABC, Module):
         uniform_(self.h, -sqrt(self.k), sqrt(self.k))
         uniform_(self.c, -sqrt(self.k), sqrt(self.k))
 
-        output = []
+        # shape of `forward_output` is (seq_len, batch_size, hidden_size)
+        forward_output = []
+
         # shape of `x_t` is (batch_size, input_size)
         for x_t in input:
             # shape of `h`/`c` is (batch_size, hidden_size)
             self.h, self.c = self.cell(x_t, (self.h, self.c))
-            output.append(self.h)
-        output = torch.stack(output, dim=0)
+            forward_output.append(self.h)
 
-        # shape of `output` is (seq_len, batch_size, hidden_size)
+        if self.bidirectional:
+            # shape of `backward_output` is (seq_len, batch_size, hidden_size)
+            backward_output = []
+            for x_t in reversed(input):
+                # shape of `h`/`c` is (batch_size, hidden_size)
+                self.h, self.c = self.cell(x_t, (self.h, self.c))
+                backward_output.append(self.h)
+
+            output = torch.stack(list(map(lambda x: torch.cat((x[0], x[1]), 1),
+                                          zip(forward_output,
+                                              reversed(backward_output)))),
+                                 dim=0)
+        else:
+            output = torch.stack(forward_output, dim=0)
+
+        # shape of `output` is (seq_len, batch_size, num_directions*hidden_size)
         return output, (self.h, self.c)
 
 

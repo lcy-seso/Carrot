@@ -87,7 +87,7 @@ def main():
         raise ValueError("Unsupported LSTM type %s" % args.lstm)
 
     model = LanguageModel(lstm, vocab_size, args.embedding_size,
-                          args.hidden_size).to(device)
+                          args.hidden_size, True).to(device)
 
     optimizer = Adam(model.parameters(), lr=args.lr)
 
