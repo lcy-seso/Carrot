@@ -5,11 +5,12 @@ from torch.nn.init import uniform_, zeros_
 class LanguageModel(Module):
     """Container module with an encoder, a recurrent module, and a decoder."""
 
-    def __init__(self, lstm, vocab_size: int, input_size: int,
+    def __init__(self, lstm, vocab_size: int, embedding_size: int,
                  hidden_size: int, bidirectional: bool):
         super(LanguageModel, self).__init__()
-        self.encoder = Embedding(vocab_size, input_size)
-        self.lstm = lstm(input_size, hidden_size, num_layers=2,
+
+        self.encoder = Embedding(vocab_size, embedding_size)
+        self.lstm = lstm(embedding_size, hidden_size, num_layers=2,
                          bidirectional=bidirectional)
         if bidirectional:
             self.decoder = Linear(2 * hidden_size, vocab_size)

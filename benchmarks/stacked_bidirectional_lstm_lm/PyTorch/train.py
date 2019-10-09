@@ -58,7 +58,7 @@ def main():
     parser.add_argument('--batch-size', type=int, default=100)
     parser.add_argument('--epoch', type=int, default=10)
     parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--embedding-size', type=int, default=200)
+    parser.add_argument('--embedding-size', type=int, default=128)
     parser.add_argument('--hidden-size', type=int, default=200)
 
     parser.add_argument('--seed', type=int, default=1111)
