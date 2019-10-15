@@ -12,7 +12,8 @@ from torch.nn.functional import cross_entropy
 from torchtext.data import Iterator
 
 from model.LanguageModel import LanguageModel
-from model.loop_visible_lstm import DefaultCellLSTM, FineGrainedCellLSTM
+from model.loop_visible_lstm import DefaultCellLSTM, JITDefaultCellLSTM, \
+    FineGrainedCellLSTM, JITFineGrainedCellLSTM
 
 from utils.data.ptb import train_dataset, valid_dataset, test_dataset, \
     vocab_size
@@ -53,9 +54,12 @@ def main():
 
     parser.add_argument('--lstm', type=str,
                         choices=['LSTM', 'DefaultCellLSTM',
-                                 'FineGrainedCellLSTM'])
+                                 'JITDefaultCellLSTM',
+                                 'FineGrainedCellLSTM',
+                                 'JITFineGrainedCellLSTM'])
     parser.add_argument('--num-layers', type=int, required=True)
     parser.add_argument('--bidirectional', action='store_true')
+    parser.add_argument('--jit', action='store_true')
 
     parser.add_argument('--batch-size', type=int, default=32)
     parser.add_argument('--epoch', type=int, default=5)
@@ -80,10 +84,10 @@ def main():
         device=device,
         sort_key=lambda x: len(x.text))
 
-    def run(lstm):
+    def run(jit, lstm):
         print(lstm.__name__)
         start = time()
-        model = LanguageModel(lstm, vocab_size, args.embedding_size,
+        model = LanguageModel(jit, lstm, vocab_size, args.embedding_size,
                               args.hidden_size, args.num_layers,
                               args.bidirectional).to(device)
 
@@ -97,18 +101,24 @@ def main():
         print('------')
 
     if args.lstm is None:
-        for lstm in [LSTM, DefaultCellLSTM, FineGrainedCellLSTM]:
-            run(lstm)
+        for lstm in [LSTM, DefaultCellLSTM, JITDefaultCellLSTM,
+                     FineGrainedCellLSTM, JITFineGrainedCellLSTM]:
+            for jit in [True, False]:
+                run(jit, lstm)
     else:
         if args.lstm == 'LSTM':
             lstm = LSTM
         elif args.lstm == 'DefaultCellLSTM':
             lstm = DefaultCellLSTM
+        elif args.lstm == 'JITDefaultCellLSTM':
+            lstm = JITDefaultCellLSTM
         elif args.lstm == 'FineGrainedCellLSTM':
             lstm = FineGrainedCellLSTM
+        elif args.lstm == 'JITFineGrainedCellLSTM':
+            lstm = JITFineGrainedCellLSTM
         else:
             raise ValueError("Unsupported LSTM type %s" % args.lstm)
-        run(lstm)
+        run(args.jit, lstm)
 
 
 if __name__ == "__main__":
