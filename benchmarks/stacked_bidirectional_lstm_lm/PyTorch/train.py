@@ -3,6 +3,7 @@ import sys
 sys.path.append('../../')
 
 import argparse
+from time import time
 import torch
 
 from torch.optim import Adam
@@ -50,21 +51,21 @@ def test(args, model, device, test_loader):
 def main():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--lstm', type=str, required=True,
+    parser.add_argument('--lstm', type=str,
                         choices=['LSTM', 'DefaultCellLSTM',
                                  'FineGrainedCellLSTM'])
     parser.add_argument('--num-layers', type=int, required=True)
     parser.add_argument('--bidirectional', action='store_true')
 
-    parser.add_argument('--batch-size', type=int, default=100)
-    parser.add_argument('--epoch', type=int, default=10)
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--epoch', type=int, default=5)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--embedding-size', type=int, default=128)
-    parser.add_argument('--hidden-size', type=int, default=200)
+    parser.add_argument('--hidden-size', type=int, default=128)
 
     parser.add_argument('--seed', type=int, default=1111)
     parser.add_argument('--cuda', action='store_true')
-    parser.add_argument('--log-interval', type=int, default=10)
+    parser.add_argument('--log-interval', type=int, default=1000)
 
     args = parser.parse_args()
 
@@ -79,24 +80,35 @@ def main():
         device=device,
         sort_key=lambda x: len(x.text))
 
-    if args.lstm == 'LSTM':
-        lstm = LSTM
-    elif args.lstm == 'DefaultCellLSTM':
-        lstm = DefaultCellLSTM
-    elif args.lstm == 'FineGrainedCellLSTM':
-        lstm = FineGrainedCellLSTM
+    def run(lstm):
+        print(lstm.__name__)
+        start = time()
+        model = LanguageModel(lstm, vocab_size, args.embedding_size,
+                              args.hidden_size, args.num_layers,
+                              args.bidirectional).to(device)
+
+        optimizer = Adam(model.parameters(), lr=args.lr)
+
+        for epoch in range(1, args.epoch + 1):
+            train(args, model, device, train_loader, optimizer, epoch)
+            test(args, model, device, test_loader)
+        end = time()
+        print('Time {}'.format(end - start))
+        print('------')
+
+    if args.lstm is None:
+        for lstm in [LSTM, DefaultCellLSTM, FineGrainedCellLSTM]:
+            run(lstm)
     else:
-        raise ValueError("Unsupported LSTM type %s" % args.lstm)
-
-    model = LanguageModel(lstm, vocab_size, args.embedding_size,
-                          args.hidden_size, args.num_layers,
-                          args.bidirectional).to(device)
-
-    optimizer = Adam(model.parameters(), lr=args.lr)
-
-    for epoch in range(1, args.epoch + 1):
-        train(args, model, device, train_loader, optimizer, epoch)
-        test(args, model, device, test_loader)
+        if args.lstm == 'LSTM':
+            lstm = LSTM
+        elif args.lstm == 'DefaultCellLSTM':
+            lstm = DefaultCellLSTM
+        elif args.lstm == 'FineGrainedCellLSTM':
+            lstm = FineGrainedCellLSTM
+        else:
+            raise ValueError("Unsupported LSTM type %s" % args.lstm)
+        run(lstm)
 
 
 if __name__ == "__main__":

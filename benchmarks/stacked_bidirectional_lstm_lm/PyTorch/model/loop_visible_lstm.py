@@ -163,6 +163,16 @@ class DefaultCellLSTM(LoopVisibleLSTM):
         return torch.nn.LSTMCell(input_size, hidden_size)
 
 
+class JITDefaultCellLSTM(LoopVisibleLSTM):
+    def get_cell(self, input_size: int, hidden_size: int):
+        return torch.jit.script(torch.nn.LSTMCell(input_size, hidden_size))
+
+
 class FineGrainedCellLSTM(LoopVisibleLSTM):
     def get_cell(self, input_size: int, hidden_size: int):
         return LSTMCell(input_size, hidden_size)
+
+
+class JITFineGrainedCellLSTM(LoopVisibleLSTM):
+    def get_cell(self, input_size: int, hidden_size: int):
+        return torch.jit.script(LSTMCell(input_size, hidden_size))
