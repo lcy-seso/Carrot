@@ -5,24 +5,33 @@ This is a **PyTorch** implementation of the Stacked Bidirectional LSTM language 
 In this benchmark, we use/implement different kinds of LSTM:
 - LSTM: torch.nn.LSTM
 - DefaultCellLSTM: Explicit loop with torch.nn.LSTMCell
+- JITDefaultCellLSTM: Explicit loop with jit(torch.nn.LSTMCell)
 - FineGrainedCellLSTM: Explicit loop with FineGrainedCell
+- JITFineGrainedCellLSTM: Explicit loop with jit(FineGrainedCell)
+
+`torch.nn.LSTM` can't run with `jit` flag `True`, or it will output:
+```
+/pytorch/aten/src/ATen/native/cudnn/RNN.cpp:1268: UserWarning: RNN module weights are not part of single contiguous chunk of memory. This means they need to be compacted at every call, possibly greatly increasing memory usage. To compact weights again call flatten_parameters().
+```
 
 # How to use
 
 ```
-usage: train.py --lstm {LSTM,DefaultCellLSTM,FineGrainedCellLSTM}
-                --num-layers NUM_LAYERS
-                [--hidden-size HIDDEN_SIZE]
-                [--cuda]
+usage: train.py
+                [--jit]
+                [--lstm {LSTM,DefaultCellLSTM,JITDefaultCellLSTM,FineGrainedCellLSTM,JITFineGrainedCellLSTM}]
                 [--bidirectional]
-                [--batch-size BATCH_SIZE]
+                [--cuda]
 
+                --num-layers NUM_LAYERS
+                [--batch-size BATCH_SIZE]
                 [--epoch EPOCH]
                 [--lr LR]
                 [--embedding-size EMBEDDING_SIZE]
+                [--hidden-size HIDDEN_SIZE]
 
-                [--log-interval LOG_INTERVAL]
                 [--seed SEED]
+                [--log-interval LOG_INTERVAL]
 ```
 
 For Example
@@ -47,3 +56,6 @@ h' = o * \tanh(c') \\
 - Python 3.6.5
 - PyTorch 1.2.0
 - CUDA 10.1
+
+# Data
+https://microsoftapc-my.sharepoint.com/:x:/g/personal/v-hocai_microsoft_com/EfF4wp5kyXxGl3fG32Wd0vwBDX1yc4KZsreujbOyl1ox8w?e=UhoRkH

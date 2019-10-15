@@ -5,7 +5,7 @@ import torch
 from torch import empty, sigmoid, tanh, Tensor
 from torch.nn import Linear, Module, ModuleList, Parameter
 from torch.nn.init import uniform_
-from typing import Tuple
+from typing import Tuple, List
 
 
 class LSTMCell(Module):
@@ -101,6 +101,7 @@ class LoopVisibleLSTM(ABC, Module):
         pass
 
     def forward(self, input: Tensor) -> Tuple[Tensor, None]:
+        seq_len = input.size(0)
         batch_size = input.size(1)
 
         h_forwards = [self.h_forward.new_empty(batch_size, self.hidden_size)
@@ -124,33 +125,44 @@ class LoopVisibleLSTM(ABC, Module):
             # shape of `x` is (batch_size, hidden_size)
             x = self.forward_init_input(x_t)
 
-            for i, forward_cell in enumerate(self.forward_cells):
+            # Why there is range-for instead of 'enumerate'? Refer to
+            # https://microsoftapc.sharepoint.com/:o:/t/daily_discussion
+            # /EvWCa97IgFZNhArch79OV-0Bd5HcPABPKJ8OTNNyjKz3Zg?e=HR4CET
+
+            i = 0
+            for forward_cell in self.forward_cells:
                 # shape of `h`/`c` is (batch_size, hidden_size)
                 h_forwards[i], c_forwards[i] = forward_cell(x, (
                     h_forwards[i], c_forwards[i]))
                 x = h_forwards[i]
+                i += 1
+
             forward_output.append(h_forwards[-1])
 
         if self.bidirectional:
 
             # shape of `backward_output` is (seq_len, batch_size, hidden_size)
-            backward_output = []
+            backward_output: List[Tensor] = []
 
             for x_t in reversed(input):
                 # shape of `x` is (batch_size, hidden_size)
                 x = self.backward_init_input(x_t)
 
-                for i, backward_cell in enumerate(self.backward_cells):
+                i = 0
+                for backward_cell in self.backward_cells:
                     # shape of `h`/`c` is (batch_size, hidden_size)
                     h_backwards[i], c_backwards[i] = backward_cell(x, (
                         h_backwards[i], c_backwards[i]))
                     x = h_backwards[i]
+                    i += 1
                 backward_output.append(h_backwards[-1])
 
-            output = torch.stack(list(map(lambda x: torch.cat((x[0], x[1]), 1),
-                                          zip(forward_output,
-                                              reversed(backward_output)))),
-                                 dim=0)
+            output_list: List[Tensor] = []
+            for i in range(seq_len):
+                output_list.append(torch.cat(
+                    (forward_output[i], backward_output[seq_len - 1 - i]), 1))
+
+            output = torch.stack(output_list, dim=0)
         else:
             output = torch.stack(forward_output, dim=0)
 

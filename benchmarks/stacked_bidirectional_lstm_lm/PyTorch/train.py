@@ -3,7 +3,9 @@ import sys
 sys.path.append('../../')
 
 import argparse
+from collections import defaultdict
 from time import time
+from datetime import datetime
 import torch
 
 from torch.optim import Adam
@@ -61,15 +63,15 @@ def main():
     parser.add_argument('--bidirectional', action='store_true')
     parser.add_argument('--jit', action='store_true')
 
-    parser.add_argument('--batch-size', type=int, default=32)
-    parser.add_argument('--epoch', type=int, default=5)
+    parser.add_argument('--batch-size', type=int, default=128)
+    parser.add_argument('--epoch', type=int, default=3)
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--embedding-size', type=int, default=128)
     parser.add_argument('--hidden-size', type=int, default=128)
 
     parser.add_argument('--seed', type=int, default=1111)
     parser.add_argument('--cuda', action='store_true')
-    parser.add_argument('--log-interval', type=int, default=1000)
+    parser.add_argument('--log-interval', type=int, default=100)
 
     args = parser.parse_args()
 
@@ -79,13 +81,22 @@ def main():
 
     train_loader, valid_loader, test_loader = Iterator.splits(
         (train_dataset, valid_dataset, test_dataset),
-        shuffle=True,
+        shuffle=False,
         batch_size=args.batch_size,
         device=device,
         sort_key=lambda x: len(x.text))
 
+    record = defaultdict(dict)
+
     def run(jit, lstm):
-        print(lstm.__name__)
+        lstm_name = lstm.__name__
+        print('{} jit: {}'.format(lstm_name, jit))
+
+        if jit and lstm == LSTM:
+            print("`torch.nn.LSTM` can't run with `jit` flag `True`")
+            record[jit][lstm_name] = 0
+            return
+
         start = time()
         model = LanguageModel(jit, lstm, vocab_size, args.embedding_size,
                               args.hidden_size, args.num_layers,
@@ -97,14 +108,30 @@ def main():
             train(args, model, device, train_loader, optimizer, epoch)
             test(args, model, device, test_loader)
         end = time()
-        print('Time {}'.format(end - start))
+        record[jit][lstm_name] = end - start
         print('------')
 
     if args.lstm is None:
-        for lstm in [LSTM, DefaultCellLSTM, JITDefaultCellLSTM,
-                     FineGrainedCellLSTM, JITFineGrainedCellLSTM]:
+        LSTM_LIST = [LSTM, JITDefaultCellLSTM, DefaultCellLSTM,
+                     JITFineGrainedCellLSTM, FineGrainedCellLSTM]
+        for lstm in LSTM_LIST:
             for jit in [True, False]:
                 run(jit, lstm)
+
+        LSTM_NAME_LIST = list(map(lambda x: x.__name__, LSTM_LIST))
+
+        with open(datetime.now().strftime("%H:%M:%S"), "w") as f:
+            f.write(' {}'.format('    '.join(LSTM_NAME_LIST)))
+            f.write('\n')
+
+            f.write('no-jit	{}'.format(
+                '    '.join(
+                    map(lambda x: str(record[False][x]), LSTM_NAME_LIST))))
+            f.write('\n')
+
+            f.write('jit	{}'.format(
+                '    '.join(
+                    map(lambda x: str(record[True][x]), LSTM_NAME_LIST))))
     else:
         if args.lstm == 'LSTM':
             lstm = LSTM
