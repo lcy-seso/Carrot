@@ -1,3 +1,7 @@
+"""Penn Treebank dataset.
+Penn Treebank (PTB) dataset from:
+http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz
+"""
 from __future__ import print_function
 
 import os
@@ -127,17 +131,16 @@ def lm_inputs(words, max_length, stride):
     return np.array(cur_words), np.array(next_words)
 
 
-def train(max_length=50, stride=3, min_word_freq=None):
+def train(vocab, max_length=50, stride=3):
     with open(getfile(TRAIN_FILE), 'r') as f:
-        return lm_inputs(
-            file_to_word_ids(f, get_vocab(min_word_freq)), max_length, stride)
+        return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
 
 
-def test(max_length=50, stride=3, min_word_freq=None):
+def test(vocab, max_length=50, stride=3):
     with open(getfile(TEST_FILE), "r") as f:
-        return lm_inputs(file_to_word_ids(f, get_vocab()), max_length, stride)
+        return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
 
 
-def valid(max_length=50, stride=3, min_word_freq=None):
+def valid(vocab, max_length=50, stride=3):
     with open(getfile(VALID_FILE), "r") as f:
-        return lm_inputs(file_to_word_ids(f, get_vocab()), max_length, stride)
+        return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)

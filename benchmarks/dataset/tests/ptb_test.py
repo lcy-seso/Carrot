@@ -28,7 +28,7 @@ class TestPtb(unittest.TestCase):
             self.dict.get(w, self.dict['<unk>']) for w in line.strip().split()
         ]
 
-        x, _ = dataset.ptb.train(max_length=len(line_ids), min_word_freq=3)
+        x, _ = dataset.ptb.train(self.dict, max_length=len(line_ids))
         self.assertEqual(line_ids, x[N].tolist())
 
     def test_test(self):
@@ -38,7 +38,7 @@ class TestPtb(unittest.TestCase):
             self.dict.get(w, self.dict['<unk>']) for w in line.strip().split()
         ]
 
-        x, _ = dataset.ptb.test(max_length=len(line_ids), min_word_freq=3)
+        x, _ = dataset.ptb.test(self.dict, max_length=len(line_ids))
         self.assertEqual(line_ids, x[N].tolist())
 
     def test_valid(self):
@@ -49,7 +49,7 @@ class TestPtb(unittest.TestCase):
             self.dict.get(w, self.dict['<unk>']) for w in line.strip().split()
         ]
 
-        x, _ = dataset.ptb.valid(max_length=len(line_ids), min_word_freq=3)
+        x, _ = dataset.ptb.valid(self.dict, max_length=len(line_ids))
         self.assertEqual(line_ids, x[N].tolist())
 
 
