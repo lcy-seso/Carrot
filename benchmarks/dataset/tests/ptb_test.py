@@ -10,49 +10,47 @@ import dataset.ptb
 
 class TestPtb(unittest.TestCase):
     def setUp(self):
-        self.dict = dataset.ptb.get_vocab(min_word_freq=None)
+        self.dict = dataset.ptb.get_vocab(min_word_freq=3)
 
     def test_ptb_vocab(self):
+        dict_len_cut3 = 9932
 
-        self.assertEqual(len(self.dict), 10001)
-        self.assertEqual(self.dict['<unk>'], len(self.dict))
+        self.assertEqual(len(self.dict), dict_len_cut3)
+        self.assertEqual(self.dict['<unk>'], len(self.dict) - 1)
 
     def test_train(self):
-        N = 0
+        N = 0  # the first line.
         line = (
-            "aer banknote berlitz calloway centrust cluett "
-            "fromstein gitano guterman hydro-quebec ipo kia memotec mlx nahb "
-            "punts rake regatta rubens sim snack-food ssangyong swapo wachter")
+            u"aer banknote berlitz calloway centrust cluett fromstein gitano "
+            u"guterman hydro-quebec ipo kia memotec mlx nahb punts "
+            u"rake regatta rubens sim snack-food ssangyong swapo wachter <e>")
         line_ids = [
-            self.dict.get(ch, self.dict['<unk>'])
-            for ch in line.strip().split()
+            self.dict.get(w, self.dict['<unk>']) for w in line.strip().split()
         ]
 
-        read_line = dataset.ptb.train()[N]
-        self.assertEqual(line_ids, read_line)
+        x, _ = dataset.ptb.train(max_length=len(line_ids), min_word_freq=3)
+        self.assertEqual(line_ids, x[N].tolist())
 
     def test_test(self):
-        N = 10
-        UNK = self.dict['<unk>']
+        N = 0  # the first line.
+        line = u" no it was n't black monday <e>"
+        line_ids = [
+            self.dict.get(w, self.dict['<unk>']) for w in line.strip().split()
+        ]
 
-        line = ("<unk> james <unk> chairman of specialists henderson brothers "
-                "inc. it is easy to say the specialist is n't doing his job")
-        line_ids = [self.dict.get(ch, UNK) for ch in line.strip().split()]
-
-        read_line = dataset.ptb.test()[N]
-        self.assertEqual(line_ids, read_line)
+        x, _ = dataset.ptb.test(max_length=len(line_ids), min_word_freq=3)
+        self.assertEqual(line_ids, x[N].tolist())
 
     def test_valid(self):
-        N = 6
-        UNK = self.dict['<unk>']
+        N = 0  # the first line.
+        line = (u" consumers may want to move their telephones "
+                u"a little closer to the tv set <e>")
+        line_ids = [
+            self.dict.get(w, self.dict['<unk>']) for w in line.strip().split()
+        ]
 
-        line = (" but right now programmers are figuring that viewers who are "
-                "busy dialing up a range of services may put down their <unk> "
-                "control <unk> and stay <unk>")
-        line_ids = [self.dict.get(ch, UNK) for ch in line.strip().split()]
-
-        read_line = dataset.ptb.valid()[N]
-        self.assertEqual(line_ids, read_line)
+        x, _ = dataset.ptb.valid(max_length=len(line_ids), min_word_freq=3)
+        self.assertEqual(line_ids, x[N].tolist())
 
 
 if __name__ == '__main__':
