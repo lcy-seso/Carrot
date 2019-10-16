@@ -1,7 +1,13 @@
+"""Penn Treebank dataset.
+Penn Treebank (PTB) dataset from:
+http://www.fit.vutbr.cz/~imikolov/rnnlm/simple-examples.tgz
+"""
 from __future__ import print_function
 
 import os
+import codecs
 
+import numpy as np
 import six as _six
 import tarfile
 import collections
@@ -22,8 +28,15 @@ MD5 = '30177ea32e27c525793142b6bf2c8e2d'
 TRAIN_FILE = "./simple-examples/data/ptb.train.txt"
 TEST_FILE = "./simple-examples/data/ptb.test.txt"
 VALID_FILE = "./simple-examples/data/ptb.valid.txt"
-VOCAB_FILE = "ptb.vocab.txt"
+VOCAB_SUFFIX = "ptb.vocab.txt"
 MODULE_NAME = "ptb"
+
+
+def read_words(filename):
+    """Read word strings from the given file.
+    """
+    with codecs.open(filepath, "r", encoding="utf-8") as f:
+        return f.read().replace("\n", "<e>").split()
 
 
 def getfile(tar_filename):
@@ -42,10 +55,16 @@ def getfile(tar_filename):
 
 def load_vocab(vocab_path):
     word_vocab = {}
-    with open(vocab_path, "r") as f:
+    with codecs.open(vocab_path, 'r', encoding='utf-8') as f:
         for i, line in enumerate(f):
             word_vocab[line.strip()] = i
     return word_vocab
+
+
+def save_vocab(save_path, word_dict):
+    with open(save_path, "w") as f:
+        for k in word_dict:
+            f.write("%s\n" % (k))
 
 
 def word_count(f, word_freq=None):
@@ -57,7 +76,6 @@ def word_count(f, word_freq=None):
             word_freq[w] += 1
         word_freq['<s>'] += 1
         word_freq['<e>'] += 1
-
     return word_freq
 
 
@@ -83,29 +101,46 @@ def build_vocab(min_word_freq):
     return word_idx
 
 
-def data_reader(f, word_dict):
+def file_to_word_ids(f, word_dict):
     UNK = word_dict['<unk>']
-    dataset = []
-    for i, line in enumerate(f):
-        word_ids = [word_dict.get(w, UNK) for w in line.strip().split()]
-        dataset.append(word_ids)
-    return dataset
+    return [
+        word_dict.get(w, UNK) for w in f.read().replace('\n', '<e>').split()
+    ]
 
 
 def get_vocab(min_word_freq=None):
-    return build_vocab(min_word_freq)
+    prefix = "all" if min_word_freq is None else "cut%02d" % (min_word_freq)
+    vocab_path = os.path.join(DATA_HOME, MODULE_NAME,
+                              prefix + "_" + VOCAB_SUFFIX)
+    if os.path.exists(vocab_path) and os.path.getsize(vocab_path):
+        return load_vocab(vocab_path)
+    else:
+        word_dict = build_vocab(min_word_freq)
+        save_vocab(vocab_path, word_dict)
+        return word_dict
 
 
-def train():
-    with open(getfile(TRAIN_FILE), "r") as f:
-        return data_reader(f, get_vocab())
+def lm_inputs(words, max_length, stride):
+    cur_words = []
+    next_words = []
+
+    data_len = len(words)
+    for i in range(0, data_len - max_length - 1, stride):
+        cur_words.append(words[i:(i + max_length)])
+        next_words.append(words[(i + 1):(i + max_length + 1)])
+    return np.array(cur_words), np.array(next_words)
 
 
-def test():
+def train(vocab, max_length=50, stride=3):
+    with open(getfile(TRAIN_FILE), 'r') as f:
+        return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
+
+
+def test(vocab, max_length=50, stride=3):
     with open(getfile(TEST_FILE), "r") as f:
-        return data_reader(f, get_vocab())
+        return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
 
 
-def valid():
+def valid(vocab, max_length=50, stride=3):
     with open(getfile(VALID_FILE), "r") as f:
-        return data_reader(f, get_vocab())
+        return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
