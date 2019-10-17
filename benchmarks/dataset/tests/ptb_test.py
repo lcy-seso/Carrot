@@ -5,7 +5,6 @@ import shutil
 import unittest
 
 from context import dataset
-import dataset.ptb
 
 
 class TestPtb(unittest.TestCase):

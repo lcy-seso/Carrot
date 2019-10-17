@@ -128,19 +128,72 @@ def lm_inputs(words, max_length, stride):
     for i in range(0, data_len - max_length - 1, stride):
         cur_words.append(words[i:(i + max_length)])
         next_words.append(words[(i + 1):(i + max_length + 1)])
-    return np.array(cur_words), np.array(next_words)
+    return np.array(
+        cur_words, dtype=np.int64), np.array(
+            next_words, dtype=np.int64)
 
 
 def train(vocab, max_length=50, stride=3):
+    """Returns the entire PTB training dataset.
+
+    Data processing reads the entire PTB train file as one string with a special
+    ending token "<e>" appended at the end of each sentence. Next, this long
+    string is cut into segments with a fixed-length in terms of word. The
+    length is specified by input argument `max_length`. When cutting segments,
+    `stride` is to used to skip several words. For example, give input string:
+    "A B C D E F G <e>", `max_length = 3` and `stride = 2`, we get segments:
+        [ A B C;
+          C D E;
+          E F G; ].
+
+    Args:
+        vocab: Dict, the PTB word dictionary.
+        max_length: Int, maximum sequence length.
+        stride: Int, The number of words to skip when split the dataset into
+            segments with a fixed length specified by `max_length`.
+
+    Returns:
+        A tuple of numpy.ndarry (dtype=int64): (current_words, next_words).
+        Layout of the returned data: [sample_num, max_length]
+    """
     with open(getfile(TRAIN_FILE), 'r') as f:
         return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
 
 
 def test(vocab, max_length=50, stride=3):
+    """Returns the entire PTB testing dataset.
+
+    See comments of the `train` function for detail information.
+
+    Args:
+        vocab: Dict, the PTB word dictionary.
+        max_length: Int, maximum sequence length.
+        stride: Int, The number of words to skip when split the dataset into
+            segments with a fixed length specified by `max_length`.
+
+    Returns:
+        A tuple of numpy.ndarry (dtype=int64): (current_words, next_words).
+        Layout of the returned data: [sample_num, max_length]
+    """
+
     with open(getfile(TEST_FILE), "r") as f:
         return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
 
 
 def valid(vocab, max_length=50, stride=3):
+    """Returns the entire PTB validation dataset.
+
+    See comments of the `train` function for detail information.
+
+    Args:
+        vocab: Dict, the PTB word dictionary.
+        max_length: Int, maximum sequence length.
+        stride: Int, The number of words to skip when split the dataset into
+            segments with a fixed length specified by `max_length`.
+
+    Returns:
+        A tuple of numpy.ndarry (dtype=int64): (current_words, next_words).
+        Layout of the returned data: [sample_num, max_length]
+    """
     with open(getfile(VALID_FILE), "r") as f:
         return lm_inputs(file_to_word_ids(f, vocab), max_length, stride)
