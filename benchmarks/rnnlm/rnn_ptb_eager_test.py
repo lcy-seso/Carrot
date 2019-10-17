@@ -1,54 +1,55 @@
-import gc
 import sys
-
-import click
+import time
 
 import tensorflow as tf
 
-from tf_model import data_reader
-from tf_model.rnn_ptb import PTBModel, train
+import tf_model.data_reader as reader
+from tf_model.rnn_ptb import small_model, loss_fn
+from test_utils import *
 
 
-def device():
-    return "/device:GPU:0" if tf.test.is_gpu_available(
-        cuda_only=True) else "/device:CPU:0"
+class PTBEagerTest(tf.test.TestCase):
+    def setUp(self):
+        self.batch_size = 16
+        self.max_seq_len = 50
+        self.learning_rate = 1e-2
 
+        self.vocab = reader.vocab()
+        self.WARMUP = 10
+        self.TEST_BATCHES = 30
 
-@click.command("train rnn lm.")
-@click.option("--logdir", default="", help="Directory for checkpoint.")
-@click.option("--epoch", default=10, help="Number of epochs.")
-@click.option("--learning_rate", default=0.1, help="The learning rate.")
-@click.option(
-    "--batch_size",
-    default=20,
-    help="The number of training examples in one forward/backward pass.")
-@click.option("--max_seq_len", default=50, help="Sequence length.")
-@click.option("--embedding_dim", default=200, help="Embedding dimension.")
-@click.option("--hidden_dim", default=200, help="Hidden layer dimension.")
-@click.option("--num_layers", default=3, help="Number of RNN layers.")
-@click.option("--use_gpu", default=False, help="Use GPU or not.")
-@click.option(
-    "--use_cudnn_rnn",
-    default=False,
-    help="Disable the fast CuDNN RNN (when no gpu)")
-def main(logdir, epoch, learning_rate, batch_size, max_seq_len, embedding_dim,
-         hidden_dim, num_layers, use_cudnn_rnn, use_gpu):
-    vocab = data_reader.vocab()
-    train_data = data_reader.train_batch(
-        vocab, batch_size, max_length=max_seq_len, shuffle=False)
+        self.start = None
 
-    model = PTBModel(
-        vocab_size=len(vocab),
-        embedding_dim=embedding_dim,
-        hidden_dim=hidden_dim,
-        num_layers=num_layers,
-        use_cudnn_rnn=use_cudnn_rnn)
+    def testTrain(self):
+        with tf.device(device()):
+            train_data = reader.train_batch(
+                self.vocab,
+                self.batch_size,
+                max_length=self.max_seq_len,
+                shuffle=False)
 
-    with tf.device(device()):
-        optimizer = tf.keras.optimizers.Adam(learning_rate)
-        train(model, optimizer, train_data, epoch)
+            model = small_model(
+                vocab_size=len(self.vocab), use_cudnn_rnn=False)
+            optimizer = tf.keras.optimizers.Adam(self.learning_rate)
+
+            for (batch, (x, y)) in enumerate(train_data):
+                # train step.
+                with tf.GradientTape() as tape:
+                    loss_value = loss_fn(model, x, y)
+                    print("Batch %d, loss = %.4f" % (batch + 1, loss_value))
+
+                grads = tape.gradient(loss_value, model.trainable_variables)
+                optimizer.apply_gradients(
+                    zip(grads, model.trainable_variables))
+
+                if batch == self.WARMUP - 1:
+                    self.start = time.time()
+
+                if batch == self.TEST_BATCHES - 1:
+                    print("Time elapsed: %.4f" % (time.time() - self.start))
+                    break
 
 
 if __name__ == "__main__":
-    tf.enable_eager_execution()
-    main()
+    tf.compat.v1.enable_eager_execution(get_config())
+    tf.test.main()
