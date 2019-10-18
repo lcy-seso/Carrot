@@ -21,19 +21,17 @@ class PTBEagerTest(tf.test.TestCase):
         self.start = None
 
     def testTrain(self):
+        train_data = reader.train_batch(
+            self.vocab,
+            self.batch_size,
+            max_length=self.max_seq_len,
+            shuffle=False)
         with tf.device(device()):
-            train_data = reader.train_batch(
-                self.vocab,
-                self.batch_size,
-                max_length=self.max_seq_len,
-                shuffle=False)
-
             model = small_model(
                 vocab_size=len(self.vocab), use_cudnn_rnn=False)
             optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
             for (batch, (x, y)) in enumerate(train_data):
-                # train step.
                 with tf.GradientTape() as tape:
                     loss_value = loss_fn(model, x, y)
                     print("Batch %d, loss = %.4f" % (batch + 1, loss_value))
