@@ -17,3 +17,7 @@ def get_config():
 def device():
     return "/device:GPU:0" if tf.test.is_gpu_available(
         cuda_only=True) else "/device:CPU:0"
+
+
+def force_gpu_sync():
+    tf.constant(1).gpu().cpu()
