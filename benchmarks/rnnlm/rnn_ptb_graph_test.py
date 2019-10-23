@@ -39,7 +39,30 @@ class PTBGraphModeTest(tf.test.TestCase):
         self.WARMUP = 10
         self.TEST_BATCHES = 20
 
-    def testWhileOpLSTMCPU(self):
+    # def testWhileOpLSTMCPU(self):
+    #     with tf.Graph().as_default():
+    #         with tf.device("/device:CPU:0"):
+    #             inputs = reader.train_batch(self.vocab,
+    #                                         self.batch_size,
+    #                                         max_length=self.max_seq_len,
+    #                                         shuffle=False,
+    #                                         eager_execution=False)
+
+    #             model = small_model(vocab_size=len(self.vocab),
+    #                                 seq_len=tf.shape(inputs.x)[1],
+    #                                 batch_size=tf.shape(inputs.x)[0],
+    #                                 rnn_type='while_op_lstm')
+    #             loss = loss_fn(model, inputs.x, inputs.y)
+    #             optimizer = tf.compat.v1.train.AdamOptimizer(
+    #                 self.learning_rate)
+    #             train_op = optimizer.minimize(loss)
+
+    #             train(inputs, loss, train_op, self.WARMUP)
+    #             self.start = time.time()
+    #             train(inputs, loss, train_op, self.TEST_BATCHES)
+    #             print("Time elapsed: %.4f" % (time.time() - self.start))
+
+    def testGraphCPUStaticLSTM(self):
         with tf.Graph().as_default():
             with tf.device("/device:CPU:0"):
                 inputs = reader.train_batch(
@@ -49,7 +72,8 @@ class PTBGraphModeTest(tf.test.TestCase):
                     shuffle=False,
                     eager_execution=False)
 
-                model = small_model(vocab_size=len(self.vocab), rnn_type='')
+                model = small_model(
+                    vocab_size=len(self.vocab), rnn_type='static_lstm')
                 loss = loss_fn(model, inputs.x, inputs.y)
                 optimizer = tf.compat.v1.train.AdamOptimizer(
                     self.learning_rate)
@@ -60,77 +84,54 @@ class PTBGraphModeTest(tf.test.TestCase):
                 train(inputs, loss, train_op, self.TEST_BATCHES)
                 print("Time elapsed: %.4f" % (time.time() - self.start))
 
-    # def testGraphCPUStaticLSTM(self):
-    #     with tf.Graph().as_default():
-    #         with tf.device("/device:CPU:0"):
-    #             inputs = reader.train_batch(
-    #                 self.vocab,
-    #                 self.batch_size,
-    #                 max_length=self.max_seq_len,
-    #                 shuffle=False,
-    #                 eager_execution=False)
+    def testGraphGPUStaticLSTM(self):
+        with tf.Graph().as_default():
+            with tf.device("/device:CPU:0"):
+                inputs = reader.train_batch(
+                    self.vocab,
+                    self.batch_size,
+                    max_length=self.max_seq_len,
+                    shuffle=False,
+                    eager_execution=False)
 
-    #             model = small_model(
-    #                 vocab_size=len(self.vocab), rnn_type='static_lstm')
-    #             loss = loss_fn(model, inputs.x, inputs.y)
-    #             optimizer = tf.compat.v1.train.AdamOptimizer(
-    #                 self.learning_rate)
-    #             train_op = optimizer.minimize(loss)
+            with tf.device("/device:GPU:0"):
+                model = small_model(
+                    vocab_size=len(self.vocab), rnn_type='static_lstm')
+                loss = loss_fn(model, inputs.x, inputs.y)
+                optimizer = tf.compat.v1.train.AdamOptimizer(
+                    self.learning_rate)
+                train_op = optimizer.minimize(loss)
 
-    #             train(inputs, loss, train_op, self.WARMUP)
-    #             self.start = time.time()
-    #             train(inputs, loss, train_op, self.TEST_BATCHES)
-    #             print("Time elapsed: %.4f" % (time.time() - self.start))
+                # warm up batches.
+                train(inputs, loss, train_op, self.WARMUP)
 
-    # def testGraphGPUStaticLSTM(self):
-    #     with tf.Graph().as_default():
-    #         with tf.device("/device:CPU:0"):
-    #             inputs = reader.train_batch(
-    #                 self.vocab,
-    #                 self.batch_size,
-    #                 max_length=self.max_seq_len,
-    #                 shuffle=False,
-    #                 eager_execution=False)
+                # test batches
+                self.start = time.time()
+                train(inputs, loss, train_op, self.TEST_BATCHES)
+                print("Time elapsed: %.4f" % (time.time() - self.start))
 
-    #         with tf.device("/device:GPU:0"):
-    #             model = small_model(
-    #                 vocab_size=len(self.vocab), rnn_type='static_lstm')
-    #             loss = loss_fn(model, inputs.x, inputs.y)
-    #             optimizer = tf.compat.v1.train.AdamOptimizer(
-    #                 self.learning_rate)
-    #             train_op = optimizer.minimize(loss)
+    def testGraphCuDNNLSTM(self):
+        with tf.Graph().as_default():
+            with tf.device("/device:CPU:0"):
+                inputs = reader.train_batch(
+                    self.vocab,
+                    self.batch_size,
+                    max_length=self.max_seq_len,
+                    shuffle=False,
+                    eager_execution=False)
 
-    #             # warm up batches.
-    #             train(inputs, loss, train_op, self.WARMUP)
+            with tf.device("/device:GPU:0"):
+                model = small_model(
+                    vocab_size=len(self.vocab), rnn_type='cudnn_lstm')
+                loss = loss_fn(model, inputs.x, inputs.y)
+                optimizer = tf.compat.v1.train.AdamOptimizer(
+                    self.learning_rate)
+                train_op = optimizer.minimize(loss)
 
-    #             # test batches
-    #             force_gpu_sync()
-    #             self.start = time.time()
-    #             train(inputs, loss, train_op, self.TEST_BATCHES)
-    #             print("Time elapsed: %.4f" % (time.time() - self.start))
-
-    # def testGraphCuDNNLSTM(self):
-    #     with tf.Graph().as_default():
-    #         with tf.device("/device:CPU:0"):
-    #             inputs = reader.train_batch(
-    #                 self.vocab,
-    #                 self.batch_size,
-    #                 max_length=self.max_seq_len,
-    #                 shuffle=False,
-    #                 eager_execution=False)
-
-    #         with tf.device("/device:GPU:0"):
-    #             model = small_model(
-    #                 vocab_size=len(self.vocab), rnn_type='cudnn_lstm')
-    #             loss = loss_fn(model, inputs.x, inputs.y)
-    #             optimizer = tf.compat.v1.train.AdamOptimizer(
-    #                 self.learning_rate)
-    #             train_op = optimizer.minimize(loss)
-
-    #             train(inputs, loss, train_op, self.WARMUP)
-    #             self.start = time.time()
-    #             train(inputs, loss, train_op, self.TEST_BATCHES)
-    #             print("Time elapsed: %.4f" % (time.time() - self.start))
+                train(inputs, loss, train_op, self.WARMUP)
+                self.start = time.time()
+                train(inputs, loss, train_op, self.TEST_BATCHES)
+                print("Time elapsed: %.4f" % (time.time() - self.start))
 
 
 if __name__ == "__main__":

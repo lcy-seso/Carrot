@@ -6,7 +6,11 @@ import tensorflow as tf
 
 import tf_model.data_reader as reader
 from tf_model.rnn_ptb import small_model, loss_fn
-from test_utils import *
+from test_utils import get_config
+
+
+def force_gpu_sync():
+    tf.constant(1).gpu().cpu()
 
 
 def train(model, optimizer, train_data, n_step):
