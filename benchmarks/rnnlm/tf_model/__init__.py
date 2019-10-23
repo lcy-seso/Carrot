@@ -5,8 +5,12 @@ sys.path.insert(
 
 from . import data_reader
 from . import rnn_ptb
+from . import whileop_rnn
+
+from .utils import *
 
 __all__ = [
-    'data_reader',
     'rnn_ptb',
+    'whileop_rnn',
+    'data_reader',
 ]
