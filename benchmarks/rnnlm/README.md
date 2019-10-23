@@ -64,7 +64,7 @@ for depth in range(3):  # the outer loop iterates over depth
 |TensorFlow Graph|27.14|0.92|
 |PyTorch without JIT|65.21|2.84|
 |PyTroch JIT (local scope) |110.16|2.65|
-|PyTorch JIT (inner loop)|75.58|6.55|
+|PyTorch JIT (inner loop)|75.58|2.61|
 |PyTorch JIT (outer loop)|65.47|2.71|
 
 ## CuDNN LSTM
