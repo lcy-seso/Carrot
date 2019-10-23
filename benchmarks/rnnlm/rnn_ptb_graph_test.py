@@ -8,24 +8,21 @@ from tf_model.rnn_ptb import small_model, loss_fn
 from test_utils import *
 
 
-def train(inputs, loss, train_op, n_step):
-    with tf.compat.v1.Session() as sess:
-        sess.run(tf.compat.v1.global_variables_initializer())
-        sess.run(inputs.initializer)
+def train(sess, inputs, loss, train_op, n_step):
 
-        batch_id = 1
-        while True:
-            try:
-                loss_value, _ = sess.run([loss, train_op])
-                print("Batch %d, loss = %.4f" % (batch_id, loss_value))
+    batch_id = 1
+    while True:
+        try:
+            loss_value, _ = sess.run([loss, train_op])
+            print("Batch %d, loss = %.4f" % (batch_id, loss_value))
 
-                if batch_id == n_step:
-                    break
+            if batch_id == n_step:
+                break
 
-                batch_id = batch_id + 1
-            except tf.errors.OutOfRangeError:
-                sess.run(inputs.initializer)
-                continue
+            batch_id = batch_id + 1
+        except tf.errors.OutOfRangeError:
+            sess.run(inputs.initializer)
+            continue
 
 
 class PTBGraphModeTest(tf.test.TestCase):
@@ -49,18 +46,23 @@ class PTBGraphModeTest(tf.test.TestCase):
     #                                         eager_execution=False)
 
     #             model = small_model(vocab_size=len(self.vocab),
-    #                                 seq_len=tf.shape(inputs.x)[1],
-    #                                 batch_size=tf.shape(inputs.x)[0],
+    #                                 seq_len=self.max_seq_len,
+    #                                 batch_size=self.batch_size,
     #                                 rnn_type='while_op_lstm')
     #             loss = loss_fn(model, inputs.x, inputs.y)
     #             optimizer = tf.compat.v1.train.AdamOptimizer(
     #                 self.learning_rate)
     #             train_op = optimizer.minimize(loss)
 
-    #             train(inputs, loss, train_op, self.WARMUP)
-    #             self.start = time.time()
-    #             train(inputs, loss, train_op, self.TEST_BATCHES)
-    #             print("Time elapsed: %.4f" % (time.time() - self.start))
+    #     with tf.compat.v1.Session() as sess:
+    #         sess.run(tf.compat.v1.global_variables_initializer())
+    #         sess.run(inputs.initializer)
+
+    #         train(sess, inputs, loss, train_op, self.WARMUP)
+
+    #         self.start = time.time()
+    #         train(sess, inputs, loss, train_op, self.TEST_BATCHES)
+    #         print("Time elapsed: %.4f" % (time.time() - self.start))
 
     def testGraphCPUStaticLSTM(self):
         with tf.Graph().as_default():
@@ -79,9 +81,13 @@ class PTBGraphModeTest(tf.test.TestCase):
                     self.learning_rate)
                 train_op = optimizer.minimize(loss)
 
-                train(inputs, loss, train_op, self.WARMUP)
+            with tf.compat.v1.Session() as sess:
+                sess.run(tf.compat.v1.global_variables_initializer())
+                sess.run(inputs.initializer)
+
+                train(sess, inputs, loss, train_op, self.WARMUP)
                 self.start = time.time()
-                train(inputs, loss, train_op, self.TEST_BATCHES)
+                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
                 print("Time elapsed: %.4f" % (time.time() - self.start))
 
     def testGraphGPUStaticLSTM(self):
@@ -102,12 +108,15 @@ class PTBGraphModeTest(tf.test.TestCase):
                     self.learning_rate)
                 train_op = optimizer.minimize(loss)
 
+            with tf.compat.v1.Session() as sess:
+                sess.run(tf.compat.v1.global_variables_initializer())
+                sess.run(inputs.initializer)
                 # warm up batches.
-                train(inputs, loss, train_op, self.WARMUP)
+                train(sess, inputs, loss, train_op, self.WARMUP)
 
                 # test batches
                 self.start = time.time()
-                train(inputs, loss, train_op, self.TEST_BATCHES)
+                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
                 print("Time elapsed: %.4f" % (time.time() - self.start))
 
     def testGraphCuDNNLSTM(self):
@@ -128,9 +137,13 @@ class PTBGraphModeTest(tf.test.TestCase):
                     self.learning_rate)
                 train_op = optimizer.minimize(loss)
 
-                train(inputs, loss, train_op, self.WARMUP)
+            with tf.compat.v1.Session() as sess:
+                sess.run(tf.compat.v1.global_variables_initializer())
+                sess.run(inputs.initializer)
+
+                train(sess, inputs, loss, train_op, self.WARMUP)
                 self.start = time.time()
-                train(inputs, loss, train_op, self.TEST_BATCHES)
+                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
                 print("Time elapsed: %.4f" % (time.time() - self.start))
 
 

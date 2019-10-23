@@ -1,7 +1,7 @@
 # Test Environment
 
 - OS: Ubuntu 16.04.2 LTS
-- [TensorFlow version: 2.0.0-alpha0](https://github.com/tensorflow/tensorflow/tree/r2.0), compiled by gcc 5.0
+- TensorFlow version: 2.0.0-alpha0, compiled by gcc 5.0
 - CUDA Version 10.0
 - CUDNN Version 7.6.2
 
@@ -34,15 +34,14 @@
 
     GeForce RTX 2080 Ti, Compute Capability 7.5
 
-# Model information
+# Model: Stacked RNN LM on PTB dataset.
 
-Stacked RNN LM on PTB dataset.
-
-1. Model topology (small model)
-    1. word embedding: vocab_size 10001, embedding_dim: 128
-    1. 3 stacked LSTM: hidden_dim: 256
-    1. pre-softmax projection: output_dim = vocab_size = 10001
-1. Every training sample in a data batch has a fixed length: 50
+1. vocab_size 10001
+1. embedding_dim: 128
+1. 3 stacked LSTM
+1. LSTM hidden_dim: 256
+1. pre-softmax projection's output dimension = vocab_size = 10001
+1. All training samples have a fixed length: 50
 
 # Run Test
 
@@ -70,8 +69,8 @@ unroll C++ implemented LSTM Cell to the max sequence length.
 
 ||Eager (s)|Graph (s)|
 |:--|:--|:--|
-|CPU|73.2186|45.6057|
-|GPU|78.1087|12.3420|
+|CPU|73.2591|27.1362|
+|GPU|77.4298| 0.9236|
 
 ## CuDNN LSTM
 
@@ -79,4 +78,4 @@ Implement the entire LSTM network in a monolithic kernel with plenty of manual o
 
 |Eager (s)|Graph (s)|
 |:--|:--|
-|14.4352|2.4225|
+|14.4352|0.6427|
