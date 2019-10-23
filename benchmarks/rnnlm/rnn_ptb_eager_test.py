@@ -5,7 +5,8 @@ import gc
 import tensorflow as tf
 
 import tf_model.data_reader as reader
-from tf_model.rnn_ptb import small_model, loss_fn
+from tf_model.rnn_ptb import small_model
+from tf_model import loss_fn
 from test_utils import get_config
 
 
@@ -50,7 +51,7 @@ class PTBEagerModeTest(tf.test.TestCase):
                 vocab_size=len(self.vocab), rnn_type='static_lstm')
             optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
-            # warm step.
+            # warmup batches.
             train(model, optimizer, train_data, self.WARMUP)
 
             self.start = time.time()
@@ -70,7 +71,7 @@ class PTBEagerModeTest(tf.test.TestCase):
                 vocab_size=len(self.vocab), rnn_type='static_lstm')
             optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
-            # warm step.
+            # warmup batches.
             train(model, optimizer, train_data, self.WARMUP)
 
             force_gpu_sync()
@@ -91,7 +92,7 @@ class PTBEagerModeTest(tf.test.TestCase):
                 vocab_size=len(self.vocab), rnn_type='cudnn_lstm')
             optimizer = tf.keras.optimizers.Adam(self.learning_rate)
 
-            # warm step.
+            # warmup batches.
             train(model, optimizer, train_data, self.WARMUP)
 
             force_gpu_sync()

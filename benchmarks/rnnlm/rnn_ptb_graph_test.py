@@ -4,12 +4,11 @@ import sys
 import tensorflow as tf
 
 import tf_model.data_reader as reader
-from tf_model.rnn_ptb import small_model, loss_fn
-from test_utils import *
+from tf_model.rnn_ptb import small_model
+from tf_model import loss_fn
 
 
 def train(sess, inputs, loss, train_op, n_step):
-
     batch_id = 1
     while True:
         try:
@@ -36,33 +35,35 @@ class PTBGraphModeTest(tf.test.TestCase):
         self.WARMUP = 10
         self.TEST_BATCHES = 20
 
-    # def testWhileOpLSTMCPU(self):
-    #     with tf.Graph().as_default():
-    #         with tf.device("/device:CPU:0"):
-    #             inputs = reader.train_batch(self.vocab,
-    #                                         self.batch_size,
-    #                                         max_length=self.max_seq_len,
-    #                                         shuffle=False,
-    #                                         eager_execution=False)
+    def testWhileOpLSTMCPU(self):
+        return True  # skip this test.
 
-    #             model = small_model(vocab_size=len(self.vocab),
-    #                                 seq_len=self.max_seq_len,
-    #                                 batch_size=self.batch_size,
-    #                                 rnn_type='while_op_lstm')
-    #             loss = loss_fn(model, inputs.x, inputs.y)
-    #             optimizer = tf.compat.v1.train.AdamOptimizer(
-    #                 self.learning_rate)
-    #             train_op = optimizer.minimize(loss)
+        import tf_model.whileop_rnn as m
 
-    #     with tf.compat.v1.Session() as sess:
-    #         sess.run(tf.compat.v1.global_variables_initializer())
-    #         sess.run(inputs.initializer)
+        with tf.Graph().as_default():
+            with tf.device("/device:CPU:0"):
+                inputs = reader.train_batch(
+                    self.vocab,
+                    self.batch_size,
+                    max_length=self.max_seq_len,
+                    shuffle=False,
+                    eager_execution=False)
 
-    #         train(sess, inputs, loss, train_op, self.WARMUP)
+                model = m.small_model(inputs.x, vocab_size=len(self.vocab))
+                loss = loss_fn(model, inputs.x, inputs.y)
+                optimizer = tf.compat.v1.train.AdamOptimizer(
+                    self.learning_rate)
+                train_op = optimizer.minimize(loss)
 
-    #         self.start = time.time()
-    #         train(sess, inputs, loss, train_op, self.TEST_BATCHES)
-    #         print("Time elapsed: %.4f" % (time.time() - self.start))
+            with tf.compat.v1.Session() as sess:
+                sess.run(tf.compat.v1.global_variables_initializer())
+                sess.run(inputs.initializer)
+
+                train(sess, inputs, loss, train_op, self.WARMUP)
+
+                self.start = time.time()
+                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
+                print("Time elapsed: %.4f" % (time.time() - self.start))
 
     def testGraphCPUStaticLSTM(self):
         with tf.Graph().as_default():
