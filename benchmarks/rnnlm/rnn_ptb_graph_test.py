@@ -1,151 +1,177 @@
-import time
+import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Only print error information.
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
+import time
 
 import tensorflow as tf
 
 import tf_model.data_reader as reader
-from tf_model.rnn_ptb import small_model
+import test_utils as tu
 from tf_model import loss_fn
+from tf_model.rnn_ptb import small_model
+import tf_model.whileop_rnn as m
 
 
-def train(sess, inputs, loss, train_op, n_step):
-    batch_id = 1
-    while True:
-        try:
-            loss_value, _ = sess.run([loss, train_op])
-            print("Batch %d, loss = %.4f" % (batch_id, loss_value))
+class PTBBenchmarks(tf.test.Benchmark):
+    BATCH_SIZE = 128
+    SEQ_LEN = 50
+    ITERS = 50
 
-            if batch_id == n_step:
-                break
-
-            batch_id = batch_id + 1
-        except tf.errors.OutOfRangeError:
-            sess.run(inputs.initializer)
-            continue
-
-
-class PTBGraphModeTest(tf.test.TestCase):
-    def setUp(self):
-        self.batch_size = 128
-        self.max_seq_len = 50
-        self.learning_rate = 1e-2
-
+    def __init__(self):
         self.vocab = reader.vocab()
 
-        self.WARMUP = 10
-        self.TEST_BATCHES = 20
+    def _report(self, test_name, start, num_iters, dev, batch_size):
+        """
+        Args:
+            test_name (String): Name of the test.
+            start (String): Timestamp of the start time.
+            num_iters (Int): Number of tested iterations.
+            dev (String): Device that on which the test is running. cpu or gpu.
+            batch_size (Int): Batch size.
+        """
+        total_time = time.time() - start
+        wall_time = total_time / num_iters
+        name = "%s_%s_batch_%d" % (test_name, dev, batch_size)
+        examples_per_sec = batch_size / wall_time
+        self.report_benchmark(
+            iters=num_iters,
+            wall_time=wall_time,
+            name=name,
+            extras={
+                "examples_per_sec": examples_per_sec,
+                "Time elapsed": total_time
+            })
 
-    def testWhileOpLSTMCPU(self):
-        return True  # skip this test.
+    def _benchmark_apply(self, dev, test_name, model):
+        """Only Test the forward computation.
+        Args:
+            dev, String: Device that on which the test is running. cpu or gpu.
+            test_name, String: Name of the test.
+            model, Callable: The tested model. It should be a callable object.
+        """
+        # TODO(Ying): use  synthetic data directly generated on the device
+        # instead of using real data.
+        inputs = reader.train_batch(
+            self.vocab,
+            PTBBenchmarks.BATCH_SIZE,
+            max_length=PTBBenchmarks.SEQ_LEN,
+            shuffle=False,
+            eager_execution=False)
 
-        import tf_model.whileop_rnn as m
-
-        with tf.Graph().as_default():
-            with tf.device("/device:CPU:0"):
-                inputs = reader.train_batch(
-                    self.vocab,
-                    self.batch_size,
-                    max_length=self.max_seq_len,
-                    shuffle=False,
-                    eager_execution=False)
-
-                model = m.small_model(inputs.x, vocab_size=len(self.vocab))
-                loss = loss_fn(model, inputs.x, inputs.y)
-                optimizer = tf.compat.v1.train.AdamOptimizer(
-                    self.learning_rate)
-                train_op = optimizer.minimize(loss)
-
-            with tf.compat.v1.Session() as sess:
-                sess.run(tf.compat.v1.global_variables_initializer())
-                sess.run(inputs.initializer)
-
-                train(sess, inputs, loss, train_op, self.WARMUP)
-
-                self.start = time.time()
-                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
-                print("Time elapsed: %.4f" % (time.time() - self.start))
-
-    def testGraphCPUStaticLSTM(self):
-        with tf.Graph().as_default():
-            with tf.device("/device:CPU:0"):
-                inputs = reader.train_batch(
-                    self.vocab,
-                    self.batch_size,
-                    max_length=self.max_seq_len,
-                    shuffle=False,
-                    eager_execution=False)
-
-                model = small_model(
-                    vocab_size=len(self.vocab), rnn_type='static_lstm')
-                loss = loss_fn(model, inputs.x, inputs.y)
-                optimizer = tf.compat.v1.train.AdamOptimizer(
-                    self.learning_rate)
-                train_op = optimizer.minimize(loss)
+        with tf.device(tu.device(dev)):
+            output = model(inputs.x)
 
             with tf.compat.v1.Session() as sess:
                 sess.run(tf.compat.v1.global_variables_initializer())
                 sess.run(inputs.initializer)
 
-                train(sess, inputs, loss, train_op, self.WARMUP)
-                self.start = time.time()
-                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
-                print("Time elapsed: %.4f" % (time.time() - self.start))
+                for _ in range(10):  #  warmup.
+                    sess.run(output)
 
-    def testGraphGPUStaticLSTM(self):
-        with tf.Graph().as_default():
-            with tf.device("/device:CPU:0"):
-                inputs = reader.train_batch(
-                    self.vocab,
-                    self.batch_size,
-                    max_length=self.max_seq_len,
-                    shuffle=False,
-                    eager_execution=False)
+                start = time.time()
+                for _ in range(PTBBenchmarks.ITERS):
+                    sess.run(output)
 
-            with tf.device("/device:GPU:0"):
-                model = small_model(
-                    vocab_size=len(self.vocab), rnn_type='static_lstm')
-                loss = loss_fn(model, inputs.x, inputs.y)
-                optimizer = tf.compat.v1.train.AdamOptimizer(
-                    self.learning_rate)
-                train_op = optimizer.minimize(loss)
+            self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
+                         PTBBenchmarks.BATCH_SIZE)
+
+    def benchmark_whileOpLSTM_cpu_forward_small(self):
+        # TODO(Ying) Stack LSTM for 3 layers.
+        return True
+        self._benchmark_apply(
+            "cpu",
+            "graph_whileOplstm_cpu_forward_small",
+            m.small_model(vocab_size=len(self.vocab)))
+
+    def benchmark_whileOpLSTM_gpu_forward_small(self):
+        # TODO(Ying) Stack LSTM for 3 layers.
+        return True
+        self._benchmark_apply(
+            "gpu",
+            "graph_whileOplstm_gpu_forward_small",
+            m.small_model(vocab_size=len(self.vocab)))
+
+    def benchmark_staticlstm_cpu_forward_small(self):
+        self._benchmark_apply(
+            "cpu", "graph_staticlstm_cpu_forward_small",
+            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
+
+    def benchmark_staticlstm_gpu_forward_small(self):
+        self._benchmark_apply(
+            "gpu", "graph_staticlstm_gpu_forward_small",
+            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
+
+    def benchmark_cudnnlstm_forward_small(self):
+        self._benchmark_apply(
+            "gpu", "graph_cudnnlstm_forward_small",
+            small_model(vocab_size=len(self.vocab), rnn_type="cudnn_lstm"))
+
+    def _benchmark_train(self, dev, test_name, model):
+        """Test both forward and backward.
+        Args:
+            dev, String: Device that on which the test is running. cpu or gpu.
+            test_name, String: Name of the test.
+            model, Callable: The tested model. It should be a callable object.
+        """
+        # TODO(Ying): use  synthetic data directly generated on the device
+        # instead of using real data.
+        inputs = reader.train_batch(
+            self.vocab,
+            PTBBenchmarks.BATCH_SIZE,
+            max_length=PTBBenchmarks.SEQ_LEN,
+            shuffle=False,
+            eager_execution=False)
+
+        with tf.device(tu.device(dev)):
+            loss = loss_fn(model, inputs.x, inputs.y)
+            optimizer = tf.compat.v1.train.AdamOptimizer(1.)
+            train_op = optimizer.minimize(loss)
 
             with tf.compat.v1.Session() as sess:
                 sess.run(tf.compat.v1.global_variables_initializer())
                 sess.run(inputs.initializer)
-                # warm up batches.
-                train(sess, inputs, loss, train_op, self.WARMUP)
 
-                # test batches
-                self.start = time.time()
-                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
-                print("Time elapsed: %.4f" % (time.time() - self.start))
+                for _ in range(10):  #  warmup.
+                    sess.run([loss, train_op])
 
-    def testGraphCuDNNLSTM(self):
-        with tf.Graph().as_default():
-            with tf.device("/device:CPU:0"):
-                inputs = reader.train_batch(
-                    self.vocab,
-                    self.batch_size,
-                    max_length=self.max_seq_len,
-                    shuffle=False,
-                    eager_execution=False)
+                start = time.time()
+                for _ in range(PTBBenchmarks.ITERS):
+                    sess.run([loss, train_op])
 
-            with tf.device("/device:GPU:0"):
-                model = small_model(
-                    vocab_size=len(self.vocab), rnn_type='cudnn_lstm')
-                loss = loss_fn(model, inputs.x, inputs.y)
-                optimizer = tf.compat.v1.train.AdamOptimizer(
-                    self.learning_rate)
-                train_op = optimizer.minimize(loss)
+            self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
+                         PTBBenchmarks.BATCH_SIZE)
 
-            with tf.compat.v1.Session() as sess:
-                sess.run(tf.compat.v1.global_variables_initializer())
-                sess.run(inputs.initializer)
+    def benchmark_whileOpLSTM_train_cpu_small(self):
+        # TODO(Ying) Stack LSTM for 3 layers.
+        return True
+        self._benchmark_apply(
+            "cpu",
+            "graph_whileOplstm_train_cpu_small",
+            m.small_model(vocab_size=len(self.vocab)))
 
-                train(sess, inputs, loss, train_op, self.WARMUP)
-                self.start = time.time()
-                train(sess, inputs, loss, train_op, self.TEST_BATCHES)
-                print("Time elapsed: %.4f" % (time.time() - self.start))
+    def benchmark_whileOpLSTM_train_gpu_small(self):
+        # TODO(Ying) Stack LSTM for 3 layers.
+        return True
+        self._benchmark_apply(
+            "gpu",
+            "graph_whileOplstm_train_gpu_small",
+            m.small_model(vocab_size=len(self.vocab)))
+
+    def benchmark_staticlstm_train_cpu_small(self):
+        self._benchmark_train(
+            "cpu", "graph_staticlstm_train_cpu_small",
+            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
+
+    def benchmark_staticlstm_train_gpu_small(self):
+        self._benchmark_train(
+            "gpu", "graph_staticlstm_train_gpu_small",
+            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
+
+    def benchmark_cudnnlstm_train_small(self):
+        self._benchmark_train(
+            "gpu", "graph_cudnnlstm_train_small",
+            small_model(vocab_size=len(self.vocab), rnn_type="cudnn_lstm"))
 
 
 if __name__ == "__main__":
