@@ -14,6 +14,19 @@ def get_config():
     return config
 
 
-def device():
-    return "/device:GPU:0" if tf.test.is_gpu_available(
-        cuda_only=True) else "/device:CPU:0"
+def device(dtype="cpu"):
+    """Return the TF device string.
+
+    Args:
+        dtype: String, "cpu" or "gpu".
+
+    Raises:
+        ValueError: if dtype is an unknown device.
+    """
+    if dtype == "cpu":
+        return "/device:CPU:0"
+    elif dtype == "gpu":
+        assert tf.test.is_gpu_available(cuda_only=True)
+        return "/device:GPU:0"
+    else:
+        raise ValueError("Unknown device type. Should be cpu or gpu.")
