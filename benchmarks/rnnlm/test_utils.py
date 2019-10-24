@@ -2,15 +2,17 @@ import tensorflow as tf
 
 
 def get_config():
-    config = tf.compat.v1.ConfigProto()
+    config = tf.compat.v1.ConfigProto(
+        gpu_options=tf.compat.v1.GPUOptions(
+            # allow_growth=True,
+            per_process_gpu_memory_fraction=0.2))
 
     config.log_device_placement = False
-    config.allow_soft_placement = True
-
-    config.gpu_options.allow_growth = True
+    config.allow_soft_placement = False
 
     config.intra_op_parallelism_threads = 0
     config.inter_op_parallelism_threads = 56
+
     return config
 
 

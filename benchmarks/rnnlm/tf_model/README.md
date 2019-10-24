@@ -4,12 +4,12 @@
 
     ``` bash
     export CUDA_VISIBLE_DEVICES="0"
-    python3 rnn_ptb_eager_test.py 2>&1 | tee eager_train.log
+    python3 rnn_ptb_eager_test.py --benchmarks=all 2>&1 | tee eager_train.log
     ```
 
-1. Run graph mode test.
+1. Run Graph mode test.
 
     ``` bash
     export CUDA_VISIBLE_DEVICES="0"
-    python3 rnn_ptb_graph_test.py 2>&1 | tee graph_train.log
+    python3 rnn_ptb_graph_test.py --benchmarks=all 2>&1 | tee graph_train.log
     ```

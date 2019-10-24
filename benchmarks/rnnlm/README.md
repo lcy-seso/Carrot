@@ -46,7 +46,13 @@
 
 # Test Results
 
-Train 30 batches. The first 10 batches are for warmup.
+Train 60 batches. The first 10 batches are for warmup, and the left 50 are timed.
+
+Metrics:
+
+1. elapsed time: total time of running 50 batches.
+1. wall time: elapsed time / 50.
+1. examples per second.
 
 ## Static LSTM
 
@@ -58,22 +64,43 @@ for depth in range(3):  # the outer loop iterates over depth
         h, c = LSTMCell(x, (h, c))  # local scope
 ```
 
-||CPU (s)|GPU (s)|
-|:--|:--|:--|
-|TensorFlow Eager|73.26|77.43|
-|TensorFlow Graph|27.14|0.92|
-|PyTorch without JIT|65.21|2.84|
-|PyTroch JIT (local scope) |110.16|2.65|
-|PyTorch JIT (inner loop)|75.58|2.61|
-|PyTorch JIT (outer loop)|65.47|2.71|
+
+### CPU
+
+||wall time (s)|elapsed time (s)|sequence per second|
+|:--|:--|:--|:--|
+|TF Eager (forward-only)|1.9563|97.81468|65.4298|
+|TF Eager (entire-training)|5.0318|251.5906|25.43815|
+|TF Graph(forward-only)|0.5834|29.1745|219.3693|
+|TF Graph (entire-training)|1.6191|80.9534|79.0579|
+|PyTorch (forward-only))|||
+|PyTorch (entire-training)|||
+|PyTroch JIT on outer scope(forward-only)|||
+|PyTroch JIT on outer scope(entire-training)|||
+
+### GPU
+
+||wall time (s)|elapsed time (s)|sequence per second|
+|:--|:--|:--|:--|
+|TF Eager (forward-only)|2.2122|110.6131|57.8593|
+|TF Eager (entire-training)|5.7051|285.2599|22.4357|
+|TF Graph(forward-only)|0.03954|1.9772|3236.9244|
+|TF Graph (entire-training)|0.05296|2.6479|2417.0494|
+|PyTorch (forward-only))|||
+|PyTorch (entire-training)|||
+|PyTroch JIT on outer scope(forward-only)|||
+|PyTroch JIT on outer scope(entire-training)|||
 
 ## CuDNN LSTM
 
 Implement the entire LSTM network in a monolithic kernel with plenty of manual optimizations.
 
-||Time (s)|
-|:--|:--|
-|TensorFlow Eager| 14.44 |
-|TensorFlow Graph| 0.64 |
-|PyTorch   |   |
-|PyTorch JIT|   |
+
+||wall time (s)|elapsed time (s)|sequence per second|
+|:--|:--|:--|:--|
+|TF-Egaer (forward-only)|0.2475|12.3766|517.1054|
+|TF-Eager (entrie-training)|0.9826|49.1279|130.2721|
+|TF-Graph (forward-only)|0.02954|1.4769|4333.5316|
+|TF-Graph (entrie-training)|0.03214|1.6069|3982.8803|
+|PyTorch (forward-only)|||
+|PyTorch (entrie-training)|||
