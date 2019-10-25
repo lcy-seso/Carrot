@@ -2,7 +2,6 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import pdb
 import math
 import tensorflow as tf
 
@@ -15,9 +14,9 @@ __all__ = [
 ]
 
 
-class FineGrainedOpLSTM(tf.keras.Model):
+class FineGrainedOpLSTMNet(tf.keras.Model):
     def __init__(self, input_size, hidden_size, num_layers):
-        super(FineGrainedOpLSTM, self).__init__()
+        super(FineGrainedOpLSTMNet, self).__init__()
 
         self.hidden_size = hidden_size
         self.cells = [
@@ -143,8 +142,8 @@ class PTBModel(tf.keras.Model):
         elif rnn_type == 'static_lstm':
             self.rnn = StaticRNN(hidden_size, num_layers, False)
         elif rnn_type == 'fine_grained_op_lstm':
-            self.rnn = FineGrainedOpLSTM(embedding_dim, hidden_size,
-                                         num_layers)
+            self.rnn = FineGrainedOpLSTMNet(embedding_dim, hidden_size,
+                                            num_layers)
         else:
             raise ValueError('Unknown RNN Type.')
 

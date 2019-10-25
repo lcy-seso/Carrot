@@ -9,8 +9,6 @@ __all__ = [
     'FineGrainedOpLSTMCell',
 ]
 
-import pdb
-
 
 class FineGrainedOpLSTMCell(layers.Layer):
     def __init__(self, input_size, hidden_size, output_size):
