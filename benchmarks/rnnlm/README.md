@@ -37,16 +37,17 @@
 
 # Model: Stacked RNN LM on PTB dataset.
 
-1. vocab_size: 10001
-1. embedding_dim: 128
-1. 3 stacked LSTM
-1. LSTM hidden_dim: 256
-1. pre-softmax projection's output dimension = vocab_size: 10001
-1. All training samples have a fixed length: 50
+1. `vocab_size` = 10001
+1. `embedding_dim` = 128
+1. `num_layers` = 3`: 3 LSTM layers are stacked.
+1. LSTM's `hidden_dim` = `output_dim` = 256
+1. pre-softmax projection's output dimension = `vocab_size` = 10001
+1. All training samples have a fixed length: `seq_len_` = 50
+1. `batch_size` = 128
 
 # Test Results
 
-Train 60 batches. The first 10 batches are for warmup, and the left 50 are timed.
+60 batches are run. The first 10 batches are for warmup, and the left 50 batches are timed.
 
 Metrics:
 

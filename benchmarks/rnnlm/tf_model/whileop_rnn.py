@@ -18,7 +18,7 @@ __all__ = [
 class WhileOpLSTM(tf.keras.Model):
     """LSTM implemented in fine-grained operators via symbolic while-ops.
 
-    Only workd in graph-mode.
+    Only works in graph-mode.
     Args:
         input (Tensor): [batch_size, seq_len, input_dim]
         hidden_size(int): hidden/cell dimension
@@ -28,109 +28,137 @@ class WhileOpLSTM(tf.keras.Model):
         A Tensor with a shape [batch_size, sequence_length, hidden_dim]
     """
 
-    def __init__(self, hidden_size, output_size):
+    def __init__(self, hiddens, output_size):
         super(WhileOpLSTM, self).__init__()
 
-        self.hidden_size = hidden_size
-        self.output_size = output_size
+        self.hiddens = hiddens
+        self._i2h_shapes = [[h, h] for h in hiddens]
+        self._h2h_shapes = [[h, h] for h in hiddens]
+        self._h2o_shapes = [[h, h] for h in hiddens]
+        self._h2o_shapes[-1][-1] = output_size
+        self.num_layers = len(hiddens)
 
-    def _while_op_lstm(self, input, hidden_size, output_size):
+    def _gate(self, input, w, b):
+        """Gate projection without activation.
+        Args:
+            input (Tensor), layout [batch_size, input_size + hidden_size].
+
+        Returns:
+            A Tensor with a shape [batch_size, hidden_size].
+        """
+        return tf.matmul(input, w) + b
+
+    def _output(self, input, w, b):
+        """hidden-to-output projection.
+        Args:
+            input (Tensor), layout [batch_size, input_size + hidden_size]
+
+        Returns:
+            A Tensor with a shape [batch_size, output_size]
+        """
+        return tf.matmul(input, w) + b
+
+    def _while_op_lstm(self, input):
         shape = tf.shape(input)
         batch_size = shape[0]
         seq_len = shape[1]
         input_size = shape[2]
 
-        stddev = 1.0 / math.sqrt(hidden_size)
-
+        self._i2h_shapes[0][0] = input_size
+        w_gate = []
+        b_gate = []
         with tf.name_scope('gate'):
-            # Concatenate input-to-hidden and hidden-to-hidden projections
-            # into one projection.
-            w_gate = tf.Variable(
-                tf.random.uniform(
-                    [input_size + hidden_size, hidden_size],
-                    minval=-stddev,
-                    maxval=stddev))  # [input_size + hidden_size, hidden_size]
+            for shape in self._i2h_shapes:
+                input_size = shape[0]
+                hidden_size = shape[1]
+                stddev = 1.0 / math.sqrt(hidden_size)
 
-            # gate bias: [hidden_size]
-            b_gate = tf.Variable(
-                tf.random.uniform(
-                    [hidden_size], minval=-stddev, maxval=stddev))
+                # Concatenate input-to-hidden and hidden-to-hidden projections
+                # into one matrix multiplication.
+                w_gate.append(
+                    tf.Variable(
+                        tf.random.uniform(
+                            [input_size + hidden_size, hidden_size],
+                            minval=-stddev,
+                            maxval=stddev)))
 
-        def gate(input):
-            """Gate projection without activation.
-            Args:
-                input (Tensor), layout [batch_size, input_size + hidden_size].
+                b_gate.append(
+                    tf.Variable(
+                        tf.random.uniform(
+                            [hidden_size], minval=-stddev, maxval=stddev)))
 
-            Returns:
-                A Tensor with a shape [batch_size, hidden_size].
-            """
-            return tf.matmul(input, w_gate) + b_gate
-
+        w_output = []
+        b_output = []
         with tf.name_scope('output'):
-            # hidden-to-output projection.
-            w_output = tf.Variable(
-                tf.random.uniform(
-                    [hidden_size, output_size], minval=-stddev, maxval=stddev))
+            for shape in self._i2h_shapes:
+                input_size = shape[0]
+                output_size = shape[1]
+                stddev = 1.0 / math.sqrt(hidden_size)
 
-            # output bias: [output_size]
-            b_output = tf.Variable(
-                tf.random.uniform(
-                    [output_size], minval=-stddev, maxval=stddev))
+                w_output.append(
+                    tf.Variable(
+                        tf.random.uniform(
+                            [hidden_size, output_size],
+                            minval=-stddev,
+                            maxval=stddev)))
+                b_output.append(
+                    tf.Variable(
+                        tf.random.uniform(
+                            [output_size], minval=-stddev, maxval=stddev)))
 
-        def output(input):
-            """hidden-to-output projection.
-            Args:
-                input (Tensor), layout [batch_size, input_size + hidden_size]
+        init_hidden = tf.zeros([batch_size, self._h2h_shapes[0][0]])
+        init_cell = tf.zeros([batch_size, self._h2h_shapes[0][0]])
 
-            Returns:
-                A Tensor with a shape [batch_size, output_size]
-            """
-            return tf.matmul(input, w_output) + b_output
-
-        init_hidden = tf.zeros([batch_size,
-                                hidden_size])  # [batch_size, hidden_size]
-
-        init_cell = tf.zeros([batch_size, hidden_size])
-        init_i = tf.constant(0)
+        init_t = tf.constant(0)
         init_output_array = tf.TensorArray(dtype=tf.float32, size=seq_len)
         cond = lambda i, _: tf.less(i, seq_len)
 
-        def body(i, step):
-            """LSTM cell.
-                """
+        def body(t, step):
+            """The LSTM cell.
+            """
             hidden, cell, output_array = step
 
-            x_t = input[:, i]
+            x_t = input[:, t]
 
-            combined = tf.concat([x_t, hidden], 1)
+            for depth in range(self.num_layers):
+                combined = tf.concat([x_t, hidden], 1)
 
-            f_gate = gate(combined)
-            i_gate = gate(combined)
-            o_gate = gate(combined)
+                f_gate = self._gate(combined, w_gate[depth], b_gate[depth])
+                i_gate = self._gate(combined, w_gate[depth], b_gate[depth])
+                o_gate = self._gate(combined, w_gate[depth], b_gate[depth])
 
-            f_gate = tf.math.sigmoid(f_gate)
-            i_gate = tf.math.sigmoid(i_gate)
-            o_gate = tf.math.sigmoid(o_gate)
+                f_gate = tf.math.sigmoid(f_gate)
+                i_gate = tf.math.sigmoid(i_gate)
+                o_gate = tf.math.sigmoid(o_gate)
 
-            cell = tf.math.add(
-                tf.math.multiply(cell, f_gate),
-                tf.math.multiply(tf.math.tanh(gate(combined)), i_gate))
+                cell = tf.math.add(
+                    tf.math.multiply(cell, f_gate),
+                    tf.math.multiply(
+                        tf.math.tanh(
+                            self._gate(combined, w_gate[depth],
+                                       b_gate[depth])), i_gate))
+                hidden = tf.math.multiply(tf.math.tanh(cell), o_gate)
 
-            hidden = tf.math.multiply(tf.math.tanh(cell), o_gate)
+                output_value = self._output(hidden, w_output[depth],
+                                            b_output[depth])
+                x_t = output_value
 
-            output_value = output(hidden)
-
-            return i + 1, (hidden, cell, output_array.write(i, output_value))
+            return t + 1, (hidden, cell, output_array.write(t, x_t))
 
         _, step = tf.while_loop(
-            cond, body, (init_i, (init_hidden, init_cell, init_output_array)))
+            cond, body, (init_t, (init_hidden, init_cell, init_output_array)))
         _, _, output_array = step
 
         return output_array.stack()
 
     def call(self, input_seq):
-        return self._while_op_lstm(input_seq, self.hidden_size,
-                                   self.output_size)
+        """Stacked LSTM network implemented by symbolic operators.
+
+        Args:
+            input_seq, Tensor, input sequence batch. The layout must be
+                batch_size major: [batch_size, seq_len, input_dim].
+        """
+        return self._while_op_lstm(input_seq)
 
 
 class PTBModel(tf.keras.Model):
@@ -139,15 +167,14 @@ class PTBModel(tf.keras.Model):
 
         self.emb = Embedding(vocab_size, embedding_dim)
         self.hidden_dim = hidden_dim
-        # self.num_layers = num_layers
-        self.num_layers = 1
 
         self.linear = layers.Dense(
             vocab_size,
             kernel_initializer=tf.keras.initializers.glorot_normal())
         self._output_shape = [-1, hidden_dim]
 
-        self.rnn = WhileOpLSTM(hidden_dim, hidden_dim)
+        self.rnn = WhileOpLSTM([hidden_dim for _ in range(num_layers)],
+                               hidden_dim)
 
     def call(self, input):
         x = self.emb(input)

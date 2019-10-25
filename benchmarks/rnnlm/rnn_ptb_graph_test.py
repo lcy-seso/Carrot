@@ -40,7 +40,7 @@ class PTBBenchmarks(tf.test.Benchmark):
             name=name,
             extras={
                 "examples_per_sec": examples_per_sec,
-                "Time elapsed": total_time
+                "time_elapsed": total_time
             })
 
     def _benchmark_apply(self, dev, test_name, model):
@@ -77,16 +77,12 @@ class PTBBenchmarks(tf.test.Benchmark):
                          PTBBenchmarks.BATCH_SIZE)
 
     def benchmark_whileOpLSTM_cpu_forward_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "cpu",
             "graph_whileOplstm_cpu_forward_small",
             m.small_model(vocab_size=len(self.vocab)))
 
     def benchmark_whileOpLSTM_gpu_forward_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "gpu",
             "graph_whileOplstm_gpu_forward_small",
@@ -143,16 +139,12 @@ class PTBBenchmarks(tf.test.Benchmark):
                          PTBBenchmarks.BATCH_SIZE)
 
     def benchmark_whileOpLSTM_train_cpu_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "cpu",
             "graph_whileOplstm_train_cpu_small",
             m.small_model(vocab_size=len(self.vocab)))
 
     def benchmark_whileOpLSTM_train_gpu_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "gpu",
             "graph_whileOplstm_train_gpu_small",

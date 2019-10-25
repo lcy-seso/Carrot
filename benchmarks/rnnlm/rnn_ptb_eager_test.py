@@ -44,7 +44,7 @@ class PTBBenchmarks(tf.test.Benchmark):
             name=name,
             extras={
                 "examples_per_sec": examples_per_sec,
-                "Time elapsed": total_time
+                "time_elapsed": total_time
             })
 
     def _benchmark_apply(self, dev, test_name, model):
