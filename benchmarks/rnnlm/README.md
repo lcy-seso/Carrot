@@ -60,7 +60,9 @@ Metrics:
 
 ## LSTM Network Implemented by Fine-grained Operators
 
-***NOTE***: TF Graph implementation uses TF's symbolic [tf.while\_loop](https://www.tensorflow.org/api_docs/python/tf/while_loop) operators while TF Eager implementation uses host language's control-flow construct.
+In the below tests:
+1. The `TF Graph whileop-lstm` implementation implements stacked LSTM network through fine-grained operators implemented LSTM Cell and TF's symbolic [tf.while\_loop](https://www.tensorflow.org/api_docs/python/tf/while_loop) operators.
+1. The `TF Eager`/`TF Graph` unrolls the entire stacked LSTM network and implements the unrolled network using primitive operators.
 
 ### CPU
 
