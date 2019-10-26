@@ -2,9 +2,10 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import math
 import tensorflow as tf
 
-from .utils import Embedding
+from .utils import Embedding, FineGrainedOpLSTMCell
 
 layers = tf.keras.layers
 
@@ -13,13 +14,42 @@ __all__ = [
 ]
 
 
+class FineGrainedOpLSTMNet(tf.keras.Model):
+    def __init__(self, input_size, hidden_size, num_layers):
+        super(FineGrainedOpLSTMNet, self).__init__()
+
+        self.hidden_size = hidden_size
+        self.cells = [
+            FineGrainedOpLSTMCell(input_size if i == 0 else hidden_size,
+                                  hidden_size, hidden_size)
+            for i in range(num_layers)
+        ]
+
+    def call(self, input_seq):
+        batch_size = int(input_seq.shape[0])
+
+        for rnncell in self.cells:  # iterate over depth
+            outputs = []
+            input_seq = tf.unstack(
+                input_seq, num=int(input_seq.shape[1]), axis=1)
+            h = tf.zeros((batch_size, self.hidden_size))
+            c = tf.zeros((batch_size, self.hidden_size))
+            for inp in input_seq:  # iterate over time step
+                h, c = rnncell(inp, h, c)
+                outputs.append(h)
+
+            input_seq = tf.stack(outputs, axis=1)
+
+        return [input_seq]
+
+
 class StaticRNN(tf.keras.Model):
     """A static RNN.
     """
 
-    def __init__(self, hidden_dim, num_layers, use_cudnn_rnn=True):
+    def __init__(self, hidden_size, num_layers, use_cudnn_rnn=True):
         """
-        hidden_dim: Int, hidden dimension of the RNN unit.
+        hidden_size: Int, hidden dimension of the RNN unit.
         num_layers: Int, the number of stacked RNN unit, namely depth of the RNN
             network.
         """
@@ -28,7 +58,7 @@ class StaticRNN(tf.keras.Model):
         if use_cudnn_rnn:
             self.cells = [
                 tf.compat.v1.keras.layers.CuDNNLSTM(
-                    hidden_dim, return_state=True, return_sequences=True)
+                    hidden_size, return_state=True, return_sequences=True)
                 for _ in range(num_layers)
             ]
         else:
@@ -40,7 +70,7 @@ class StaticRNN(tf.keras.Model):
             # applications.
             self.cells = [
                 layers.LSTMCell(
-                    units=hidden_dim,
+                    units=hidden_size,
                     activation='tanh',
                     recurrent_activation='sigmoid',
                     use_bias=True,
@@ -53,7 +83,7 @@ class StaticRNN(tf.keras.Model):
                     implementation=2) for _ in range(num_layers)
             ]
 
-        self.hidden_dim = hidden_dim
+        self.hidden_size = hidden_size
         self.use_cudnn_rnn = use_cudnn_rnn
 
     def _cudnn_lstm_call(self, input_seq):
@@ -73,16 +103,11 @@ class StaticRNN(tf.keras.Model):
         if self.use_cudnn_rnn:
             return self._cudnn_lstm_call(input_seq)
 
-        # NOTE: below line only works in eager mode.
-        # In eager mode, TensorFlow operations are immediately evaluated and
-        # return their values to Python, so below line will return the vaule
-        # of batch size, while in graph mode, we use dataset API to feed data,
-        # the batch size dimension is None when defining the graph.
         batch_size = int(input_seq.shape[0])
 
         for c in self.cells:  # iterate over depth
-            state = (tf.zeros((batch_size, self.hidden_dim)),
-                     tf.zeros((batch_size, self.hidden_dim)))
+            state = (tf.zeros((batch_size, self.hidden_size)),
+                     tf.zeros((batch_size, self.hidden_size)))
             outputs = []
 
             # unpack the input 3D tensors along the `max_sequence_length` axis
@@ -102,29 +127,30 @@ class PTBModel(tf.keras.Model):
     """LSTM for word language modeling.
     """
 
-    def __init__(self, vocab_size, embedding_dim, hidden_dim, num_layers,
+    def __init__(self, vocab_size, embedding_dim, hidden_size, num_layers,
                  rnn_type):
         super(PTBModel, self).__init__()
 
         self.embedding_dim = embedding_dim
-        self.hidden_dim = hidden_dim
+        self.hidden_size = hidden_size
 
         self.rnn_type = rnn_type
         self.embedding = Embedding(vocab_size, embedding_dim)
 
         if rnn_type == 'cudnn_lstm':
-            self.rnn = StaticRNN(hidden_dim, num_layers, True)
+            self.rnn = StaticRNN(hidden_size, num_layers, True)
         elif rnn_type == 'static_lstm':
-            self.rnn = StaticRNN(hidden_dim, num_layers, False)
-        elif rnn_type == 'fine_grained_lstm_eager':
-            raise Exception('Not impelmented yet.')
+            self.rnn = StaticRNN(hidden_size, num_layers, False)
+        elif rnn_type == 'fine_grained_op_lstm':
+            self.rnn = FineGrainedOpLSTMNet(embedding_dim, hidden_size,
+                                            num_layers)
         else:
             raise ValueError('Unknown RNN Type.')
 
         self.linear = layers.Dense(
             vocab_size,
             kernel_initializer=tf.keras.initializers.glorot_normal())
-        self._output_shape = [-1, hidden_dim]
+        self._output_shape = [-1, hidden_size]
 
     def call(self, input_seq):
         """Run the forward pass of PTBModel.
@@ -132,13 +158,13 @@ class PTBModel(tf.keras.Model):
             input_seq: Tensor(int64), layout: [batch_size, sequence_length].
         Returns:
             outputs tensors of inference with layout:
-                [batch_size, sequence_length, hidden_dim]
+                [batch_size, sequence_length, hidden_size]
         """
         y = self.embedding(input_seq)
         if self.rnn is None:
-            y = whileOpLSTM(y, self.hidden_dim, self.hidden_dim)
+            y = whileOpLSTM(y, self.hidden_size, self.hidden_size)
         else:
-            y = self.rnn(y)[0]  # [batch_size, sequence_length, hidden_dim]
+            y = self.rnn(y)[0]  # [batch_size, sequence_length, hidden_size]
         return self.linear(tf.reshape(y, self._output_shape))
 
 
@@ -147,6 +173,6 @@ def small_model(vocab_size, rnn_type):
     return PTBModel(
         vocab_size=vocab_size,
         embedding_dim=128,
-        hidden_dim=256,
+        hidden_size=256,
         num_layers=3,
         rnn_type=rnn_type)

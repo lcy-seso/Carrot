@@ -44,7 +44,7 @@ class PTBBenchmarks(tf.test.Benchmark):
             name=name,
             extras={
                 "examples_per_sec": examples_per_sec,
-                "Time elapsed": total_time
+                "time_elapsed": total_time
             })
 
     def _benchmark_apply(self, dev, test_name, model):
@@ -78,6 +78,18 @@ class PTBBenchmarks(tf.test.Benchmark):
                 model(x)
             self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
                          PTBBenchmarks.BATCH_SIZE)
+
+    def benchmark_fine_grained_op_lstm_cpu_forward_small(self):
+        self._benchmark_apply(
+            "cpu", "eager_finegrained_op_lstm_cpu_forward_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+
+    def benchmark_fine_grained_op_lstm_gpu_forward_small(self):
+        self._benchmark_apply(
+            "gpu", "eager_finegrained_op_lstm_gpu_forward_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
 
     def benchmark_staticlstm_cpu_forward_small(self):
         self._benchmark_apply(
@@ -134,6 +146,18 @@ class PTBBenchmarks(tf.test.Benchmark):
             force_gpu_sync()
             self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
                          PTBBenchmarks.BATCH_SIZE)
+
+    def benchmark_fine_grained_op_lstm_cpu_train_small(self):
+        self._benchmark_train(
+            "cpu", "eager_finegrained_op_lstm_cpu_train_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+
+    def benchmark_fine_grained_op_lstm_gpu_train_small(self):
+        self._benchmark_train(
+            "gpu", "eager_finegrained_op_lstm_gpu_train_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
 
     def benchmark_staticlstm_train_cpu_small(self):
         self._benchmark_train(

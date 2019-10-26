@@ -40,7 +40,7 @@ class PTBBenchmarks(tf.test.Benchmark):
             name=name,
             extras={
                 "examples_per_sec": examples_per_sec,
-                "Time elapsed": total_time
+                "time_elapsed": total_time
             })
 
     def _benchmark_apply(self, dev, test_name, model):
@@ -77,20 +77,28 @@ class PTBBenchmarks(tf.test.Benchmark):
                          PTBBenchmarks.BATCH_SIZE)
 
     def benchmark_whileOpLSTM_cpu_forward_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "cpu",
             "graph_whileOplstm_cpu_forward_small",
             m.small_model(vocab_size=len(self.vocab)))
 
     def benchmark_whileOpLSTM_gpu_forward_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "gpu",
             "graph_whileOplstm_gpu_forward_small",
             m.small_model(vocab_size=len(self.vocab)))
+
+    def benchmark_fine_grained_op_lstm_cpu_forward_small(self):
+        self._benchmark_apply(
+            "cpu", "graph_finegrained_op_lstm_cpu_forward_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+
+    def benchmark_fine_grained_op_lstm_gpu_forward_small(self):
+        self._benchmark_apply(
+            "gpu", "graph_finegrained_op_lstm_gpu_forward_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
 
     def benchmark_staticlstm_cpu_forward_small(self):
         self._benchmark_apply(
@@ -143,20 +151,28 @@ class PTBBenchmarks(tf.test.Benchmark):
                          PTBBenchmarks.BATCH_SIZE)
 
     def benchmark_whileOpLSTM_train_cpu_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "cpu",
             "graph_whileOplstm_train_cpu_small",
             m.small_model(vocab_size=len(self.vocab)))
 
     def benchmark_whileOpLSTM_train_gpu_small(self):
-        # TODO(Ying) Stack LSTM for 3 layers.
-        return True
         self._benchmark_apply(
             "gpu",
             "graph_whileOplstm_train_gpu_small",
             m.small_model(vocab_size=len(self.vocab)))
+
+    def benchmark_fine_grained_op_lstm_cpu_train_small(self):
+        self._benchmark_train(
+            "cpu", "graph_finegrained_op_lstm_cpu_train_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+
+    def benchmark_fine_grained_op_lstm_gpu_train_small(self):
+        self._benchmark_train(
+            "gpu", "graph_finegrained_op_lstm_gpu_train_small",
+            small_model(
+                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
 
     def benchmark_staticlstm_train_cpu_small(self):
         self._benchmark_train(
