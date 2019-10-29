@@ -4,8 +4,7 @@ import tensorflow as tf
 def get_config():
     config = tf.compat.v1.ConfigProto(
         gpu_options=tf.compat.v1.GPUOptions(
-            # allow_growth=True,
-            per_process_gpu_memory_fraction=0.2))
+            allow_growth=True, per_process_gpu_memory_fraction=0.2))
 
     config.log_device_placement = False
     config.allow_soft_placement = True

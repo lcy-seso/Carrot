@@ -60,39 +60,37 @@ Metrics:
 
 ## LSTM Network Implemented by Fine-grained Operators
 
-In the below tests:
-1. The `TF Graph whileop-lstm` implementation implements stacked LSTM network through fine-grained operators implemented LSTM Cell and TF's symbolic [tf.while\_loop](https://www.tensorflow.org/api_docs/python/tf/while_loop) operators.
-1. The `TF Eager`/`TF Graph` unrolls the entire stacked LSTM network and implements the unrolled network using primitive operators.
+In the below tests: 1. The `TF Graph whileop-lstm` implementation implements stacked LSTM network through fine-grained operators implemented LSTM Cell and TF's symbolic [tf.while\_loop](https://www.tensorflow.org/api_docs/python/tf/while_loop) operators. 1. The `TF Eager`/`TF Graph` unrolls the entire stacked LSTM network and implements the unrolled network using primitive operators.
 
 ### CPU
 
 |                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
 |:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.6851        | 84.2560          | 75.9590             |
-| TF Eager (entire-training)                  | 5.5387        | 276.9333         | 23.1103             |
-| TF Graph(forward-only)                      | 0.6452        | 32.2603          | 198.3862            |
-| TF Graph(entire-training)                   | 1.3251        | 66.2531          | 96.5992             |
-| TF Graph whileop-lstm(forward-only)         | 0.5243        | 26.2165          | 244.1207            |
-| TF Graph whileop-lstm(entire-training)      | 0.9210        | 46.4985          | 137.6386            |
-| PyTorch (forward-only))                     |               |                  |                     |
-| PyTorch (entire-training)                   |               |                  |                     |
-| PyTroch JIT on outer scope(forward-only)    |               |                  |                     |
-| PyTroch JIT on outer scope(entire-training) |               |                  |                     |
+| TF Eager (forward-only)                     | 1.5050        | 85.0492          | 75.2506             |
+| TF Eager (entire-training)                  | 5.2381        | 261.9030         | 24.4365             |
+| TF Graph(forward-only)                      | 0.2687        | 32.2603          | 476.3282            |
+| TF Graph(entire-training)                   | 0.7869        | 39.3426          | 162.6734            |
+| TF Graph whileop-lstm(forward-only)         | 0.2652        | 13.2582          | 482.7189            |
+| TF Graph whileop-lstm(entire-training)      | 0.8653        | 43.2652          | 147.9247            |
+| PyTorch (forward-only)                      | 0.2211        | 11.0572          | 578.8104            |
+| PyTorch (entire-training)                   | 1.7270        | 86.3499          | 74.1170             |
+| PyTorch JIT on outer scope(forward-only)    | 0.2077        | 10.3836          | 616.3571            |
+| PyTorch JIT on outer scope(entire-training) | 1.4866        | 74.3278          | 86.1050             |
 
 ### GPU
 
 |                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
 |:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.7229        | 86.1453          | 74.2931             |
-| TF Eager (entire-training)                  | 6.0288        | 301.4379         | 21.2316             |
-| TF Graph(forward-only)                      | 0.0435        | 2.1729           | 2945.4088           |
-| TF Graph (entire-training)                  | 0.0616        | 3.0802           | 2077.7791           |
-| TF Graph whileop-lstm(forward-only)         | 0.0628        | 3.1379           | 2039.5771           |
-| TF Graph whileop-lstm(entire-training)      | 0.1133        | 5.6687           | 1129.0042           |
-| PyTorch (forward-only))                     |               |                  |                     |
-| PyTorch (entire-training)                   |               |                  |                     |
-| PyTroch JIT on outer scope(forward-only)    |               |                  |                     |
-| PyTroch JIT on outer scope(entire-training) |               |                  |                     |
+| TF Eager (forward-only)                     | 1.6109        | 79.4576          | 80.5460             |
+| TF Eager (entire-training)                  | 5.6337        | 281.6842         | 22.7205             |
+| TF Graph(forward-only)                      | 0.0590        | 2.9487           | 2170.4379           |
+| TF Graph (entire-training)                  | 0.0916        | 4.5810           | 1397.0780           |
+| TF Graph whileop-lstm(forward-only)         | 0.0721        | 3.6027           | 1776.4577           |
+| TF Graph whileop-lstm(entire-training)      | 0.1858        | 9.2919           | 688.7714            |
+| PyTorch (forward-only)                      | 0.0285        | 1.4241           | 4493.9478           |
+| PyTorch (entire-training)                   | 0.2003        | 10.0127          | 639.1888            |
+| PyTorch JIT on outer scope(forward-only)    | 0.0210        | 1.0524           | 6081.4433           |
+| PyTorch JIT on outer scope(entire-training) | 0.1742        | 8.7091           | 734.8663            |
 
 ## Static LSTM
 
@@ -108,27 +106,27 @@ for depth in range(3):  # the outer loop iterates over depth
 
 |                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
 |:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.2076        | 60.3823          | 105.9912            |
-| TF Eager (entire-training)                  | 3.0750        | 161.7546         | 39.5661             |
-| TF Graph(forward-only)                      | 0.5834        | 29.1745          | 219.3693            |
-| TF Graph (entire-training)                  | 1.6191        | 2.6479           | 2417.0494           |
-| PyTorch (forward-only))                     |               |                  |                     |
-| PyTorch (entire-training)                   |               |                  |                     |
-| PyTroch JIT on outer scope(forward-only)    |               |                  |                     |
-| PyTroch JIT on outer scope(entire-training) |               |                  |                     |
+| TF Eager (forward-only)                     | 1.2225        | 61.1254          | 104.7027            |
+| TF Eager (entire-training)                  | 3.0802        | 154.0104         | 41.5556             |
+| TF Graph(forward-only)                      | 0.2970        | 14.8495          | 430.9899            |
+| TF Graph (entire-training)                  | 0.8478        | 42.3902          | 150.9782            |
+| PyTorch (forward-only)                      | 0.2144        | 10.7207          | 596.9736            |
+| PyTorch (entire-training)                   | 1.7044        | 85.2190          | 75.1006             |
+| PyTorch JIT on outer scope(forward-only)    | 0.2164        | 10.8200          | 591.4970            |
+| PyTorch JIT on outer scope(entire-training) | 1.3931        | 69.6566          | 91.8794             |
 
 ### GPU
 
 |                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
 |:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.2839        | 64.1965          | 9.6939              |
-| TF Eager (entire-training)                  | 3.2351        | 161.7546         | 39.5661             |
-| TF Graph(forward-only)                      | 0.0395        | 1.9772           | 3236.9244           |
-| TF Graph (entire-training)                  | 0.0530        | 2.6479           | 2417.0494           |
-| PyTorch (forward-only))                     |               |                  |                     |
-| PyTorch (entire-training)                   |               |                  |                     |
-| PyTroch JIT on outer scope(forward-only)    |               |                  |                     |
-| PyTroch JIT on outer scope(entire-training) |               |                  |                     |
+| TF Eager (forward-only)                     | 1.1988        | 59.9422          | 106.7695            |
+| TF Eager (entire-training)                  | 3.0028        | 150.1442         | 42.6257             |
+| TF Graph(forward-only)                      | 0.0437        | 2.1837           | 2930.8486           |
+| TF Graph (entire-training)                  | 0.0707        | 3.5330           | 1811.4876           |
+| PyTorch (forward-only)                      | 0.0284        | 1.4225           | 4499.2769           |
+| PyTorch (entire-training)                   | 0.1983        | 9.9137           | 645.5730            |
+| PyTorch JIT on outer scope(forward-only)    | 0.0212        | 1.0586           | 6045.9103           |
+| PyTorch JIT on outer scope(entire-training) | 0.1868        | 9.3398           | 685.2425            |
 
 ## CuDNN LSTM
 
@@ -136,9 +134,9 @@ Implement the entire LSTM network in a monolithic kernel with plenty of manual o
 
 |                            | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
 |:---------------------------|:--------------|:-----------------|:--------------------|
-| TF-Egaer (forward-only)    | 0.1496        | 7.4796           | 855.6626            |
-| TF-Eager (entrie-training) | 0.6481        | 32.4056          | 197.4967            |
-| TF-Graph (forward-only)    | 0.0295        | 1.4769           | 4333.5316           |
-| TF-Graph (entrie-training) | 0.0321        | 1.6069           | 3982.8802           |
-| PyTorch (forward-only)     |               |                  |                     |
-| PyTorch (entrie-training)  |               |                  |                     |
+| TF-Egaer (forward-only)    | 0.1469        | 7.3467           | 871.1441            |
+| TF-Eager (entrie-training) | 0.5271        | 26.3526          | 242.8605            |
+| TF-Graph (forward-only)    | 0.0297        | 1.4842           | 4312.2252           |
+| TF-Graph (entrie-training) | 0.0311        | 1.5530           | 4120.9726           |
+| PyTorch (forward-only)     | 0.0085        | 0.4243           | 15082.3043          |
+| PyTorch (entire-training)  | 0.0234        | 1.1675           | 5481.7606           |
