@@ -22,9 +22,7 @@ def batch_input(x: ndarray, y: ndarray, batch_size: int, shuffle: bool,
     dataset = TensorDataset(
         torch.from_numpy(x).to(device),
         torch.from_numpy(y).to(device))
-    data_loader = DataLoader(
-        dataset=dataset, batch_size=batch_size, shuffle=shuffle)
-    return data_loader
+    return DataLoader(dataset=dataset, batch_size=batch_size, shuffle=shuffle)
 
 
 def train_loader(vocab,
@@ -44,7 +42,7 @@ def test_loader(vocab,
                 shuffle=False,
                 device="cpu"):
     x, y = ptb.test(vocab, max_length, stride)
-    return batch_input(x, y, batch_size, shuffle, device)
+    return batch_input(x.T, y.T, batch_size, shuffle, device)
 
 
 def valid_loader(vocab,
@@ -54,4 +52,4 @@ def valid_loader(vocab,
                  shuffle=False,
                  device="cpu"):
     x, y = ptb.valid(vocab, max_length, stride)
-    return batch_input(x, y, batch_size, shuffle, device)
+    return batch_input(x.T, y.T, batch_size, shuffle, device)
