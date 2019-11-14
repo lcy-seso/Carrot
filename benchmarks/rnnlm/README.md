@@ -1,3 +1,25 @@
+# Motivations and Goals
+
+Given the facts that:
+
+1.  TensorFlow and PyTorch are two of the most popular mainstream deep learning toolkits. They tend to have similar high-level design choices: seamlessly support imperative execution (via PyTorch, TensorFlow Eager mode) for flexibility and declarative execution (via PyTorch JIT, TensorFlow Graph mode) for performance.
+
+2.  Fine-grained operators and control-flow construct significantly improve flexibility but puts many burdens on efficiency. To achieve performance, existing solutions manually group several fine-grained operators into a larger one, which means, if users chose the performance, they would lose flexibility and vice versa. The key here is how many users' DL/ML programs we can automatically optimize. Otherwise, flexibility might still be harmful to performance.
+
+The goal of this test is twofold:
+
+1.  illustrate the tradeoff between flexibility and performance so that we could know the space for automatic optimizations.
+2.  performance differences between two of the most popular mainstream deep learning toolkit: TensorFlow and PyTorch so that to help up to make a quick decision whether it is valuable to focus on one existing infrastructure to do some experiments.
+
+## Quick conclusions
+
+Without digging into more implementation details, from current numbers, we temporarily conclude:
+
+1.  TensorFlow Eager has some strange overheads on GPU execution, which could be even slower than CPU execution. By contrast, PyTorch JIT worth considering more.
+2.  If considering the entire training task, TensorFlow Graph execution is the most efficient one. The performance gap between PyTorch/PyTorch and TensorFlow eager is more significant on CPU execution, while the difference becomes smaller on GPU execution.
+3.  Surprisingly, PyTorch/PyTorch JIT's forward computation is more efficient than TensorFlow graph mode, but when considering the whole training iteration, it becomes slower than TensorFlow graph mode. It seems that the AD implementation plus parameter updating has some more overheads.
+4.  Optimizing control-flow and fine-grained operators will significantly improve the performance on GPU while the performance loss is not that significant on CPU execution.
+
 # Test Environment
 
 ``` {.text}
@@ -60,7 +82,10 @@ Metrics:
 
 ## LSTM Network Implemented by Fine-grained Operators
 
-In the below tests: 1. The `TF Graph whileop-lstm` implementation implements stacked LSTM network through fine-grained operators implemented LSTM Cell and TF's symbolic [tf.while\_loop](https://www.tensorflow.org/api_docs/python/tf/while_loop) operators. 1. The `TF Eager`/`TF Graph` unrolls the entire stacked LSTM network and implements the unrolled network using primitive operators.
+In the below tests:
+
+1.  The `TF Graph whileop-lstm` implementation implements stacked LSTM network through fine-grained operators implemented LSTM Cell and TF's symbolic [tf.while\_loop](https://www.tensorflow.org/api_docs/python/tf/while_loop) operators.
+2.  The `TF Eager`/`TF Graph` unrolls the entire stacked LSTM network and implements the unrolled network using primitive operators.
 
 ### CPU
 
@@ -72,10 +97,10 @@ In the below tests: 1. The `TF Graph whileop-lstm` implementation implements sta
 | TF Graph(entire-training)                   | 0.7869        | 39.3426          | 162.6734            |
 | TF Graph whileop-lstm(forward-only)         | 0.2652        | 13.2582          | 482.7189            |
 | TF Graph whileop-lstm(entire-training)      | 0.8653        | 43.2652          | 147.9247            |
-| PyTorch (forward-only)                      | 0.2211        | 11.0572          | 578.8104            |
-| PyTorch (entire-training)                   | 1.7270        | 86.3499          | 74.1170             |
-| PyTorch JIT on outer scope(forward-only)    | 0.2077        | 10.3836          | 616.3571            |
-| PyTorch JIT on outer scope(entire-training) | 1.4866        | 74.3278          | 86.1050             |
+| PyTorch (forward-only)                      | 0.4806        | 24.0279          | 266.3574            |
+| PyTorch (entire-training)                   | 1.9554        | 97.7685          | 65.4607             |
+| PyTorch JIT on outer scope(forward-only)    | 0.4266        | 21.3289          | 300.0617            |
+| PyTorch JIT on outer scope(entire-training) | 2.4091        | 120.4535         | 53.1325             |
 
 ### GPU
 
@@ -87,10 +112,10 @@ In the below tests: 1. The `TF Graph whileop-lstm` implementation implements sta
 | TF Graph (entire-training)                  | 0.0916        | 4.5810           | 1397.0780           |
 | TF Graph whileop-lstm(forward-only)         | 0.0721        | 3.6027           | 1776.4577           |
 | TF Graph whileop-lstm(entire-training)      | 0.1858        | 9.2919           | 688.7714            |
-| PyTorch (forward-only)                      | 0.0285        | 1.4241           | 4493.9478           |
-| PyTorch (entire-training)                   | 0.2003        | 10.0127          | 639.1888            |
-| PyTorch JIT on outer scope(forward-only)    | 0.0210        | 1.0524           | 6081.4433           |
-| PyTorch JIT on outer scope(entire-training) | 0.1742        | 8.7091           | 734.8663            |
+| PyTorch (forward-only)                      | 0.1707        | 8.5327           | 750.0577            |
+| PyTorch (entire-training)                   | 0.4738        | 23.6913          | 270.1419            |
+| PyTorch JIT on outer scope(forward-only)    | 0.0590        | 2.9511           | 2168.7047           |
+| PyTorch JIT on outer scope(entire-training) | 0.2709        | 13.5444          | 472.5208            |
 
 ## Static LSTM
 
@@ -110,10 +135,10 @@ for depth in range(3):  # the outer loop iterates over depth
 | TF Eager (entire-training)                  | 3.0802        | 154.0104         | 41.5556             |
 | TF Graph(forward-only)                      | 0.2970        | 14.8495          | 430.9899            |
 | TF Graph (entire-training)                  | 0.8478        | 42.3902          | 150.9782            |
-| PyTorch (forward-only)                      | 0.2144        | 10.7207          | 596.9736            |
-| PyTorch (entire-training)                   | 1.7044        | 85.2190          | 75.1006             |
-| PyTorch JIT on outer scope(forward-only)    | 0.2164        | 10.8200          | 591.4970            |
-| PyTorch JIT on outer scope(entire-training) | 1.3931        | 69.6566          | 91.8794             |
+| PyTorch (forward-only)                      | 0.3645        | 18.2256          | 351.1551            |
+| PyTorch (entire-training)                   | 3.0368        | 151.8392         | 42.1498             |
+| PyTorch JIT on outer scope(forward-only)    | 0.3761        | 18.8029          | 340.3738            |
+| PyTorch JIT on outer scope(entire-training) | 2.3677        | 118.3856         | 54.0606             |
 
 ### GPU
 
@@ -123,10 +148,10 @@ for depth in range(3):  # the outer loop iterates over depth
 | TF Eager (entire-training)                  | 3.0028        | 150.1442         | 42.6257             |
 | TF Graph(forward-only)                      | 0.0437        | 2.1837           | 2930.8486           |
 | TF Graph (entire-training)                  | 0.0707        | 3.5330           | 1811.4876           |
-| PyTorch (forward-only)                      | 0.0284        | 1.4225           | 4499.2769           |
-| PyTorch (entire-training)                   | 0.1983        | 9.9137           | 645.5730            |
-| PyTorch JIT on outer scope(forward-only)    | 0.0212        | 1.0586           | 6045.9103           |
-| PyTorch JIT on outer scope(entire-training) | 0.1868        | 9.3398           | 685.2425            |
+| PyTorch (forward-only)                      | 0.0331        | 1.6533           | 3871.1344           |
+| PyTorch (entire-training)                   | 0.1091        | 5.4549           | 1173.2491           |
+| PyTorch JIT on outer scope(forward-only)    | 0.0251        | 1.2549           | 5100.0342           |
+| PyTorch JIT on outer scope(entire-training) | 0.1004        | 5.0185           | 1275.2917           |
 
 ## CuDNN LSTM
 
@@ -138,5 +163,5 @@ Implement the entire LSTM network in a monolithic kernel with plenty of manual o
 | TF-Eager (entrie-training) | 0.5271        | 26.3526          | 242.8605            |
 | TF-Graph (forward-only)    | 0.0297        | 1.4842           | 4312.2252           |
 | TF-Graph (entrie-training) | 0.0311        | 1.5530           | 4120.9726           |
-| PyTorch (forward-only)     | 0.0085        | 0.4243           | 15082.3043          |
-| PyTorch (entire-training)  | 0.0234        | 1.1675           | 5481.7606           |
+| PyTorch (forward-only)     | 0.0086        | 0.4291           | 14916.2879          |
+| PyTorch (entire-training)  | 0.0236        | 1.1809           | 5419.7600           |
