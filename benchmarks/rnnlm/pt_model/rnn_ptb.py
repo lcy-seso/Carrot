@@ -1,4 +1,3 @@
-import pdb
 from math import sqrt
 from typing import Tuple, List
 
@@ -169,9 +168,8 @@ class CuDNNLSTMPTBModel(nn.Module):
         super(CuDNNLSTMPTBModel, self).__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        # The model uses the nn.RNN module (and its sister modules nn.GRU
-        # and nn.LSTM) which will automatically use the cuDNN backend
-        # if run on CUDA with cuDNN installed.
+        # nn.LSTM will automatically use the cuDNN backend if run on
+        # CUDA with cuDNN installed.
         self.rnn_net = nn.LSTM(
             embedding_dim,
             rnn_hidden_dim,

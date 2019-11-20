@@ -50,7 +50,7 @@ class PTBBenchmarks(tf.test.Benchmark):
             test_name, String: Name of the test.
             model, Callable: The tested model. It should be a callable object.
         """
-        # TODO(Ying): use  synthetic data directly generated on the device
+        # TODO(Ying): use synthetic data directly generated on the device
         # instead of using real data.
         inputs = reader.train_batch(
             self.vocab,
