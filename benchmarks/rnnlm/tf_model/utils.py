@@ -21,32 +21,77 @@ class FineGrainedOpLSTMCell(layers.Layer):
     def build(self, _):
         stddev = 1.0 / math.sqrt(self.hidden_size)
         with tf.name_scope('gate'):
-            self.w_gates = [
-                tf.Variable(
-                    tf.random.uniform(
-                        [self.input_size + self.hidden_size, self.hidden_size],
-                        minval=-stddev,
-                        maxval=stddev)) for _ in range(4)
-            ]
-            self.b_gates = [
-                tf.Variable(
-                    tf.random.uniform(
-                        [self.hidden_size], minval=-stddev, maxval=stddev))
-                for _ in range(4)
-            ]
+            # learnable paramters for input gate.
+            self.Wi = tf.Variable(
+                tf.random.uniform(
+                    [self.input_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.Ui = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.bi = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size], minval=-stddev, maxval=stddev))
+
+            # learnable paramters for forget gate.
+            self.Wf = tf.Variable(
+                tf.random.uniform(
+                    [self.input_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.Uf = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.bf = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size], minval=-stddev, maxval=stddev))
+
+            # learnable paramters for cell candidate.
+            self.Wg = tf.Variable(
+                tf.random.uniform(
+                    [self.input_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.Ug = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.bg = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size], minval=-stddev, maxval=stddev))
+
+            # learnable paramters for output gate.
+            self.Wo = tf.Variable(
+                tf.random.uniform(
+                    [self.input_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.Uo = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size, self.hidden_size],
+                    minval=-stddev,
+                    maxval=stddev))
+            self.bo = tf.Variable(
+                tf.random.uniform(
+                    [self.hidden_size], minval=-stddev, maxval=stddev))
 
     def call(self, x, h_prev, c_prev):
-        combined_x = tf.concat([x, h_prev], 1)
-        f_gate = tf.matmul(combined_x, self.w_gates[0]) + self.b_gates[0]
-        i_gate = tf.matmul(combined_x, self.w_gates[1]) + self.b_gates[1]
-        o_gate = tf.matmul(combined_x, self.w_gates[2]) + self.b_gates[2]
+        f_gate = tf.matmul(x, self.Wf) + tf.matmul(h_prev, self.Uf) + self.bf
+        i_gate = tf.matmul(x, self.Wi) + tf.matmul(h_prev, self.Ui) + self.bi
+        o_gate = tf.matmul(x, self.Wo) + tf.matmul(h_prev, self.Uo) + self.bo
 
         f_gate = tf.math.sigmoid(f_gate)
         i_gate = tf.math.sigmoid(i_gate)
         o_gate = tf.math.sigmoid(o_gate)
 
         cell_candidate = tf.math.tanh(
-            tf.matmul(combined_x, self.w_gates[3]) + self.b_gates[3])
+            tf.matmul(x, self.Wg) + tf.matmul(h_prev, self.Ug) + self.bg)
         cell = tf.math.add(
             tf.math.multiply(c_prev, f_gate),
             tf.math.multiply(cell_candidate, i_gate))

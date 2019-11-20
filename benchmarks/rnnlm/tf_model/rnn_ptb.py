@@ -28,12 +28,14 @@ class FineGrainedOpLSTMNet(tf.keras.Model):
     def call(self, input_seq):
         batch_size = int(input_seq.shape[0])
 
+        h_init = tf.zeros((batch_size, self.hidden_size))
+        c_init = tf.zeros((batch_size, self.hidden_size))
         for rnncell in self.cells:  # iterate over depth
+            h = h_init
+            c = c_init
             outputs = []
             input_seq = tf.unstack(
                 input_seq, num=int(input_seq.shape[1]), axis=1)
-            h = tf.zeros((batch_size, self.hidden_size))
-            c = tf.zeros((batch_size, self.hidden_size))
             for inp in input_seq:  # iterate over time step
                 h, c = rnncell(inp, h, c)
                 outputs.append(h)

@@ -26,20 +26,24 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
         self.vocab_size = len(self.vocab)
         torch.manual_seed(1234)
 
-        self.init_logger()
+        self._init_logger()
 
-    def init_logger(self):
-        self.logger = logging.getLogger()
+    def _report(self, test_name, start):
+        elapsed_time = time() - start
+        average_time = elapsed_time / PyTorchPTBBenchmarks.ITERS
+        seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
+                       PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
+        self.logger.info(("|%s|%.4f\t|%.4f\t|%.4f") %
+                         (test_name, average_time, elapsed_time, seq_per_sec))
 
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter(fmt=("%(levelname)s %(message)s")))
-        self.logger.addHandler(handler)
-
-        handler.setLevel(logging.DEBUG
-                         if PyTorchPTBBenchmarks.LOG_DEBUG else logging.INFO)
-        self.logger.setLevel(logging.DEBUG if PyTorchPTBBenchmarks.LOG_DEBUG
-                             else logging.INFO)
+    def _init_logger(self):
+        logging.basicConfig(
+            filename="pytorch_ptb_rnn.log",
+            filemode="w",
+            format="%(message)s",
+            level=logging.DEBUG
+            if PyTorchPTBBenchmarks.LOG_DEBUG else logging.INFO)
+        self.logger = logging.getLogger("PT_logger")
 
     def _apply_forward(self, test_name, data_loader, model):
         model.train()
@@ -53,15 +57,7 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
         for batch_idx, (x, y) in enumerate(data_loader, start=1):
             output, _ = model(x)
             if batch_idx == PyTorchPTBBenchmarks.ITERS:
-                elapsed_time = time() - start
-                average_time = elapsed_time / PyTorchPTBBenchmarks.ITERS
-                seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
-                               PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
-                self.logger.info(
-                    ("\n||Average Time per Batch\t"
-                     "|Elapsed Time\t|Sequence per Second\n"
-                     "|%s|%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
-                                                  elapsed_time, seq_per_sec))
+                self._report(test_name, start)
                 break
 
     def _apply_train(self, test_name, data_loader, model, optimizer) -> float:
@@ -87,15 +83,7 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
             _step(batch_idx, x, y)
 
             if batch_idx == PyTorchPTBBenchmarks.ITERS:
-                elapsed_time = time() - start
-                average_time = elapsed_time / PyTorchPTBBenchmarks.ITERS
-                seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
-                               PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
-                self.logger.info(
-                    ("\n||Average Time per Batch\t"
-                     "|Elapsed Time\t|Sequence per Second\n"
-                     "|%s|%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
-                                                  elapsed_time, seq_per_sec))
+                self._report(test_name, start)
                 break
 
     def test_fine_grained_lstm_forward(self):

@@ -1,13 +1,14 @@
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Only print error information.
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+import logging
 import sys
 import time
 
 import tensorflow as tf
 
 import tf_model.data_reader as reader
-import test_utils as tu
+import tf_test_utils as tu
 from tf_model import loss_fn
 from tf_model.rnn_ptb import small_model
 import tf_model.whileop_rnn as m
@@ -18,30 +19,34 @@ class PTBBenchmarks(tf.test.Benchmark):
     SEQ_LEN = 50
     ITERS = 50
 
-    def __init__(self):
-        self.vocab = reader.vocab()
+    LOG_DEBUG = True
 
-    def _report(self, test_name, start, num_iters, dev, batch_size):
+    def __init__(self):
+        tf.compat.v2.random.set_seed(1234)
+        self.vocab = reader.vocab()
+        self._init_logger()
+
+    def _init_logger(self):
+        self.logger = logging.getLogger("TF_graph_logger")
+        fh = logging.FileHandler("tensorflow_graph_ptb_rnn.log", mode="w")
+        fh.setLevel(logging.DEBUG if PTBBenchmarks.LOG_DEBUG else logging.INFO)
+        fh.setFormatter(logging.Formatter("%(message)s"))
+        self.logger.addHandler(fh)
+        self.logger = logging.getLogger("TF_graph_logger")
+
+    def _report(self, test_name, start):
         """
         Args:
             test_name (String): Name of the test.
             start (String): Timestamp of the start time.
             num_iters (Int): Number of tested iterations.
-            dev (String): Device that on which the test is running. cpu or gpu.
-            batch_size (Int): Batch size.
         """
-        total_time = time.time() - start
-        wall_time = total_time / num_iters
-        name = "%s_%s_batch_%d" % (test_name, dev, batch_size)
-        examples_per_sec = batch_size / wall_time
-        self.report_benchmark(
-            iters=num_iters,
-            wall_time=wall_time,
-            name=name,
-            extras={
-                "examples_per_sec": examples_per_sec,
-                "time_elapsed": total_time
-            })
+        elapsed_time = time.time() - start
+        average_time = elapsed_time / PTBBenchmarks.BATCH_SIZE
+        seq_per_sec = (
+            PTBBenchmarks.BATCH_SIZE * PTBBenchmarks.ITERS / elapsed_time)
+        self.logger.info(("|%s|%.4f\t|%.4f\t|%.4f") %
+                         (test_name, average_time, elapsed_time, seq_per_sec))
 
     def _benchmark_apply(self, dev, test_name, model):
         """Only Test the forward computation.
@@ -66,53 +71,49 @@ class PTBBenchmarks(tf.test.Benchmark):
                 sess.run(tf.compat.v1.global_variables_initializer())
                 sess.run(inputs.initializer)
 
-                for _ in range(10):  #  warmup.
+                for i in range(10):  #  warmup.
                     sess.run(output)
 
                 start = time.time()
-                for _ in range(PTBBenchmarks.ITERS):
+                for i in range(PTBBenchmarks.ITERS):
                     sess.run(output)
 
-            self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
-                         PTBBenchmarks.BATCH_SIZE)
+            self._report(test_name, start)
 
-    def benchmark_whileOpLSTM_cpu_forward_small(self):
-        self._benchmark_apply(
-            "cpu",
-            "graph_whileOplstm_cpu_forward_small",
-            m.small_model(vocab_size=len(self.vocab)))
+    def benchmark_whileOpLSTM_forward(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_apply(
+                device,
+                f"graph_whileOplstm_{device}_forward",
+                m.small_model(vocab_size=len(self.vocab)))
 
-    def benchmark_whileOpLSTM_gpu_forward_small(self):
-        self._benchmark_apply(
-            "gpu",
-            "graph_whileOplstm_gpu_forward_small",
-            m.small_model(vocab_size=len(self.vocab)))
+    def benchmark_fine_grained_op_lstm_forward(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_apply(
+                device, f"graph_finegrained_op_lstm_{device}_forward",
+                small_model(
+                    vocab_size=len(self.vocab),
+                    rnn_type="fine_grained_op_lstm"))
 
-    def benchmark_fine_grained_op_lstm_cpu_forward_small(self):
-        self._benchmark_apply(
-            "cpu", "graph_finegrained_op_lstm_cpu_forward_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+    def benchmark_staticlstm_forward(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_apply(
+                device, f"graph_staticlstm_{device}_forward",
+                small_model(
+                    vocab_size=len(self.vocab), rnn_type="static_lstm"))
 
-    def benchmark_fine_grained_op_lstm_gpu_forward_small(self):
+    def benchmark_cudnnlstm_forward(self):
         self._benchmark_apply(
-            "gpu", "graph_finegrained_op_lstm_gpu_forward_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
-
-    def benchmark_staticlstm_cpu_forward_small(self):
-        self._benchmark_apply(
-            "cpu", "graph_staticlstm_cpu_forward_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
-
-    def benchmark_staticlstm_gpu_forward_small(self):
-        self._benchmark_apply(
-            "gpu", "graph_staticlstm_gpu_forward_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
-
-    def benchmark_cudnnlstm_forward_small(self):
-        self._benchmark_apply(
-            "gpu", "graph_cudnnlstm_forward_small",
+            "gpu", "graph_cudnnlstm_forward",
             small_model(vocab_size=len(self.vocab), rnn_type="cudnn_lstm"))
 
     def _benchmark_train(self, dev, test_name, model):
@@ -133,60 +134,60 @@ class PTBBenchmarks(tf.test.Benchmark):
 
         with tf.device(tu.device(dev)):
             loss = loss_fn(model, inputs.x, inputs.y)
-            optimizer = tf.compat.v1.train.AdamOptimizer(1.)
+            optimizer = tf.compat.v1.train.AdamOptimizer(1e-3)
             train_op = optimizer.minimize(loss)
 
             with tf.compat.v1.Session() as sess:
                 sess.run(tf.compat.v1.global_variables_initializer())
                 sess.run(inputs.initializer)
 
-                for _ in range(10):  #  warmup.
-                    sess.run([loss, train_op])
+                for i in range(10):  #  warmup.
+                    loss_value, _ = sess.run([loss, train_op])
+                    self.logger.debug(
+                        "batch %d, loss_value = %.4f" % (i, loss_value))
 
                 start = time.time()
-                for _ in range(PTBBenchmarks.ITERS):
-                    sess.run([loss, train_op])
+                for i in range(PTBBenchmarks.ITERS):
+                    loss_value, _ = sess.run([loss, train_op])
+                    self.logger.debug(
+                        "batch %d, loss_value = %.4f" % (i, loss_value))
 
-            self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
-                         PTBBenchmarks.BATCH_SIZE)
+            self._report(test_name, start)
 
-    def benchmark_whileOpLSTM_train_cpu_small(self):
-        self._benchmark_apply(
-            "cpu",
-            "graph_whileOplstm_train_cpu_small",
-            m.small_model(vocab_size=len(self.vocab)))
+    def benchmark_whileOpLSTM_train(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_train(
+                device,
+                f"graph_whileOplstm_train_{device}",
+                m.small_model(vocab_size=len(self.vocab)))
 
-    def benchmark_whileOpLSTM_train_gpu_small(self):
-        self._benchmark_apply(
-            "gpu",
-            "graph_whileOplstm_train_gpu_small",
-            m.small_model(vocab_size=len(self.vocab)))
+    def benchmark_fine_grained_op_lstm_train(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_train(
+                device, f"graph_finegrained_op_lstm_{device}_train",
+                small_model(
+                    vocab_size=len(self.vocab),
+                    rnn_type="fine_grained_op_lstm"))
 
-    def benchmark_fine_grained_op_lstm_cpu_train_small(self):
+    def benchmark_staticlstm_train(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_train(
+                device, f"graph_staticlstm_train_{device}",
+                small_model(
+                    vocab_size=len(self.vocab), rnn_type="static_lstm"))
+
+    def benchmark_cudnnlstm_train(self):
         self._benchmark_train(
-            "cpu", "graph_finegrained_op_lstm_cpu_train_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
-
-    def benchmark_fine_grained_op_lstm_gpu_train_small(self):
-        self._benchmark_train(
-            "gpu", "graph_finegrained_op_lstm_gpu_train_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
-
-    def benchmark_staticlstm_train_cpu_small(self):
-        self._benchmark_train(
-            "cpu", "graph_staticlstm_train_cpu_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
-
-    def benchmark_staticlstm_train_gpu_small(self):
-        self._benchmark_train(
-            "gpu", "graph_staticlstm_train_gpu_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
-
-    def benchmark_cudnnlstm_train_small(self):
-        self._benchmark_train(
-            "gpu", "graph_cudnnlstm_train_small",
+            "gpu", "graph_cudnnlstm_train",
             small_model(vocab_size=len(self.vocab), rnn_type="cudnn_lstm"))
 
 
