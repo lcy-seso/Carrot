@@ -1,5 +1,6 @@
+import pdb
 from math import sqrt
-from typing import Tuple
+from typing import Tuple, List
 
 import torch
 import torch.nn as nn
@@ -66,6 +67,55 @@ class FineGrainedOpLSTMCell(nn.Module):
         return h, c
 
 
+class StackedRNNNetJIT(nn.Module):
+    def __init__(self, batch_size: int, max_seq_length: int, input_size: int,
+                 hidden_size: int, num_layers: int, cell_type: str):
+        super(StackedRNNNetJIT, self).__init__()
+
+        self.max_seq_length = max_seq_length
+        self.num_layers = num_layers
+        self.hidden_size = hidden_size
+
+        self.register_buffer('init_state',
+                             torch.zeros((batch_size, hidden_size)))
+
+        if cell_type == "fine_grained_op_lstm":
+            self.rnn1 = FineGrainedOpLSTMCell(input_size, hidden_size)
+            self.rnn2 = FineGrainedOpLSTMCell(hidden_size, hidden_size)
+            self.rnn3 = FineGrainedOpLSTMCell(hidden_size, hidden_size)
+            self.rnn_cells = [self.rnn1, self.rnn2, self.rnn3]
+        elif cell_type == "lstm_cell":
+            self.rnn1 = torch.nn.LSTMCell(input_size, hidden_size)
+            self.rnn2 = torch.nn.LSTMCell(hidden_size, hidden_size)
+            self.rnn3 = torch.nn.LSTMCell(hidden_size, hidden_size)
+            self.rnn_cells = [self.rnn1, self.rnn2, self.rnn3]
+        else:
+            raise ValueError("Unknown rnn type.")
+
+    def forward(self, input: Tensor) -> Tuple[Tensor, Tensor]:
+        """
+        Args:
+            input, Tensor, input batch with a shape of [batch_size, seq_length,
+                input_size].
+        """
+        xs = input
+
+        h: Tensor = self.init_state
+        c: Tensor = self.init_state
+
+        hiddens: List[Tensor] = []
+        cells: List[Tensor] = []
+        for t in range(self.max_seq_length):
+            x = xs[:, t, :]
+            x, c = self.rnn1(x, (h, c))
+            x, c = self.rnn2(x, (h, c))
+            x, c = self.rnn3(x, (h, c))
+            hiddens.append(h)
+            cells.append(c)
+        xs = torch.stack(hiddens, dim=1)
+        return xs, torch.stack(cells)
+
+
 class StackedRNNNet(nn.Module):
     def __init__(self, batch_size: int, max_seq_length: int, input_size: int,
                  hidden_size: int, num_layers: int, cell_type: str):
@@ -91,26 +141,50 @@ class StackedRNNNet(nn.Module):
         else:
             raise ValueError("Unknown rnn type.")
 
-    def forward(self, input: Tensor) -> Tuple[Tensor, None]:
+    def forward(self, input: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Args:
             input, Tensor, input batch with a shape of [batch_size, seq_length,
                 input_size].
         """
         xs = input
-        for (depth, rnncell) in enumerate(self.rnn_cells):
-            h = self.init_state
-            c = self.init_state
+        for rnn_cell in self.rnn_cells:
+            h: Tensor = self.init_state
+            c: Tensor = self.init_state
 
-            hiddens = []
-            cells = []
+            hiddens: List[Tensor] = []
+            cells: List[Tensor] = []
             for t in range(self.max_seq_length):
                 x = xs[:, t, :]
-                h, c = rnncell(x, (h, c))
+                h, c = rnn_cell(x, (h, c))
                 hiddens.append(h)
                 cells.append(c)
             xs = torch.stack(hiddens, dim=1)
         return xs, torch.stack(cells)
+
+
+class CuDNNLSTMPTBModel(nn.Module):
+    def __init__(self, vocab_size: int, embedding_dim: int,
+                 rnn_hidden_dim: int, num_layers: int):
+        super(CuDNNLSTMPTBModel, self).__init__()
+
+        self.embedding = nn.Embedding(vocab_size, embedding_dim)
+        # The model uses the nn.RNN module (and its sister modules nn.GRU
+        # and nn.LSTM) which will automatically use the cuDNN backend
+        # if run on CUDA with cuDNN installed.
+        self.rnn_net = nn.LSTM(
+            embedding_dim,
+            rnn_hidden_dim,
+            num_layers,
+            dropout=0.,
+            batch_first=True,
+            bidirectional=False)
+        self.linear = nn.Linear(rnn_hidden_dim, vocab_size)
+
+    def forward(self, input):
+        embedding = self.embedding(input)
+        hiddens, _ = self.rnn_net(embedding)
+        return self.linear(hiddens), hiddens
 
 
 class PTBModel(nn.Module):
@@ -140,10 +214,15 @@ class PTBModel(nn.Module):
         super(PTBModel, self).__init__()
 
         self.embedding = nn.Embedding(vocab_size, embedding_dim)
-        self.rnn_net = StackedRNNNet(batch_size, max_seq_length, embedding_dim,
-                                     rnn_hidden_dim, num_layers, cell_type)
         if enable_jit:
-            self.rnn_net = torch.jit.script(self.rnn_net)
+            self.rnn_net = torch.jit.script(
+                StackedRNNNetJIT(batch_size, max_seq_length, embedding_dim,
+                                 rnn_hidden_dim, num_layers, cell_type))
+            # print(self.rnn_net.graph)
+        else:
+            self.rnn_net = StackedRNNNet(batch_size, max_seq_length,
+                                         embedding_dim, rnn_hidden_dim,
+                                         num_layers, cell_type)
 
         self.linear = nn.Linear(rnn_hidden_dim, vocab_size)
 
@@ -156,10 +235,14 @@ class PTBModel(nn.Module):
         Returns:
             A Tensor with a shape of [batch_size, seq_len, rnn_hidden_dim].
         """
-        # [batch_size, seq_len, embedding_dim]
-        embedding = self.embedding(input)
-        hiddens, _ = self.rnn_net(embedding)
-        return self.linear(hiddens), hiddens
+
+        def _model_func(x):
+            # layout of `embedding_dim`: [batch_size, seq_len, embedding_dim]
+            embedding = self.embedding(x)
+            hiddens, _ = self.rnn_net(embedding)
+            return self.linear(hiddens), hiddens
+
+        return _model_func(input)
 
 
 def small_model(cell_type,
@@ -167,12 +250,19 @@ def small_model(cell_type,
                 max_seq_length,
                 vocab_size,
                 enable_jit=False):
-    return PTBModel(
-        cell_type=cell_type,
-        batch_size=batch_size,
-        max_seq_length=max_seq_length,
-        vocab_size=vocab_size,
-        embedding_dim=128,
-        rnn_hidden_dim=256,
-        num_layers=3,
-        enable_jit=enable_jit)
+    if cell_type == "cudnn_lstm":
+        return CuDNNLSTMPTBModel(
+            vocab_size=vocab_size,
+            embedding_dim=128,
+            rnn_hidden_dim=256,
+            num_layers=3)
+    else:
+        return PTBModel(
+            cell_type=cell_type,
+            batch_size=batch_size,
+            max_seq_length=max_seq_length,
+            vocab_size=vocab_size,
+            embedding_dim=128,
+            rnn_hidden_dim=256,
+            num_layers=3,
+            enable_jit=enable_jit)

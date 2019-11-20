@@ -58,10 +58,10 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
                 seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
                                PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
                 self.logger.info(
-                    ("%s\nAverage Time per Batch\t"
-                     "|Elapsed Time\t |Sequence per Second\n"
-                     "%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
-                                              elapsed_time, seq_per_sec))
+                    ("\n||Average Time per Batch\t"
+                     "|Elapsed Time\t|Sequence per Second\n"
+                     "|%s|%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
+                                                  elapsed_time, seq_per_sec))
                 break
 
     def _apply_train(self, test_name, data_loader, model, optimizer) -> float:
@@ -92,28 +92,117 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
                 seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
                                PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
                 self.logger.info(
-                    ("%s\nAverage Time per Batch\t"
-                     "|Elapsed Time\t |Sequence per Second\n"
-                     "%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
-                                              elapsed_time, seq_per_sec))
+                    ("\n||Average Time per Batch\t"
+                     "|Elapsed Time\t|Sequence per Second\n"
+                     "|%s|%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
+                                                  elapsed_time, seq_per_sec))
                 break
 
-    def test_fine_grained_lstm_cup_forward(self):
-        device = "cpu"
-        train_loader = reader.train_loader(
-            self.vocab,
-            PyTorchPTBBenchmarks.BATCH_SIZE,
-            PyTorchPTBBenchmarks.SEQ_LEN,
-            device=device)
-        m = model.small_model(
-            cell_type="fine_grained_op_lstm",
-            batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
-            max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
-            vocab_size=self.vocab_size).to(device)
-        self._apply_forward("fine_grained_lstm_%s_forward" % (device),
-                            train_loader, m)
+    def test_fine_grained_lstm_forward(self):
+        for enable_jit in [
+                False,
+                True,
+        ]:
+            for device in [
+                    "cpu",
+                    "cuda:0",
+            ]:
+                train_loader = reader.train_loader(
+                    self.vocab,
+                    PyTorchPTBBenchmarks.BATCH_SIZE,
+                    PyTorchPTBBenchmarks.SEQ_LEN,
+                    device=device)
+                m = model.small_model(
+                    cell_type="fine_grained_op_lstm",
+                    batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
+                    max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
+                    vocab_size=self.vocab_size,
+                    enable_jit=enable_jit).to(device)
 
-    def test_fine_grained_lstm_gpu_forward(self):
+                test_name = f'fine_grained_lstm_{device}_forward' + (
+                    '_JIT' if enable_jit else '')
+                self._apply_forward(test_name, train_loader, m)
+
+    def test_fine_grained_lstm_train(self):
+        for enable_jit in [
+                False,
+                True,
+        ]:
+            for device in [
+                    "cpu",
+                    "cuda:0",
+            ]:
+                train_loader = reader.train_loader(
+                    self.vocab,
+                    PyTorchPTBBenchmarks.BATCH_SIZE,
+                    PyTorchPTBBenchmarks.SEQ_LEN,
+                    device=device)
+                m = model.small_model(
+                    cell_type="fine_grained_op_lstm",
+                    batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
+                    max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
+                    vocab_size=self.vocab_size,
+                    enable_jit=enable_jit).to(device)
+                optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
+
+                test_name = f'fine_grained_lstm_{device}_train' + (
+                    '_JIT' if enable_jit else '')
+                self._apply_train(test_name, train_loader, m, optimizer)
+
+    def test_static_lstm_forward(self):
+        for enable_jit in [
+                False,
+                True,
+        ]:
+            for device in [
+                    "cpu",
+                    "cuda:0",
+            ]:
+                train_loader = reader.train_loader(
+                    self.vocab,
+                    PyTorchPTBBenchmarks.BATCH_SIZE,
+                    PyTorchPTBBenchmarks.SEQ_LEN,
+                    device=device)
+                m = model.small_model(
+                    cell_type="lstm_cell",
+                    batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
+                    max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
+                    vocab_size=self.vocab_size,
+                    enable_jit=enable_jit).to(device)
+                test_name = f'static_lstm_{device}_forward' + ('_JIT'
+                                                               if enable_jit
+                                                               else '')
+                self._apply_forward(test_name, train_loader, m)
+
+    def test_static_lstm_train(self):
+        for enable_jit in [
+                False,
+                True,
+        ]:
+            for device in [
+                    "cpu",
+                    "cuda:0",
+            ]:
+                train_loader = reader.train_loader(
+                    self.vocab,
+                    PyTorchPTBBenchmarks.BATCH_SIZE,
+                    PyTorchPTBBenchmarks.SEQ_LEN,
+                    device=device)
+                m = model.small_model(
+                    cell_type="lstm_cell",
+                    batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
+                    max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
+                    vocab_size=self.vocab_size,
+                    enable_jit=enable_jit).to(device)
+                optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
+
+                test_name = f'static_lstm_{device}_train' + ('_JIT'
+                                                             if enable_jit else
+                                                             '')
+                self._apply_train(test_name, train_loader, m, optimizer)
+
+    def test_cudnn_lstm_forward(self):
+        torch.backends.cudnn.enabled = True
         device = "cuda:0"
         train_loader = reader.train_loader(
             self.vocab,
@@ -121,30 +210,14 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
             PyTorchPTBBenchmarks.SEQ_LEN,
             device=device)
         m = model.small_model(
-            cell_type="fine_grained_op_lstm",
+            cell_type="cudnn_lstm",
             batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
             max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
             vocab_size=self.vocab_size).to(device)
-        self._apply_forward("fine_grained_lstm_%s_forward" % (device),
-                            train_loader, m)
+        self._apply_forward("cudnn_lstm_forward", train_loader, m)
 
-    def test_fine_grained_lstm_cpu_train(self):
-        device = "cpu"
-        train_loader = reader.train_loader(
-            self.vocab,
-            PyTorchPTBBenchmarks.BATCH_SIZE,
-            PyTorchPTBBenchmarks.SEQ_LEN,
-            device=device)
-        m = model.small_model(
-            cell_type="fine_grained_op_lstm",
-            batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
-            max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
-            vocab_size=self.vocab_size).to(device)
-        optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
-        self._apply_train("fine_grained_lstm_%s_train" % device, train_loader,
-                          m, optimizer)
-
-    def test_fine_grained_lstm_gpu_train(self):
+    def test_cudnn_lstm_train(self):
+        torch.backends.cudnn.enabled = True
         device = "cuda:0"
         train_loader = reader.train_loader(
             self.vocab,
@@ -152,73 +225,12 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
             PyTorchPTBBenchmarks.SEQ_LEN,
             device=device)
         m = model.small_model(
-            cell_type="fine_grained_op_lstm",
+            cell_type="cudnn_lstm",
             batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
             max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
             vocab_size=self.vocab_size).to(device)
         optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
-        self._apply_train("fine_grained_lstm_%s_train" % device, train_loader,
-                          m, optimizer)
-
-    def test_static_lstm_cpu_forward(self):
-        device = "cpu"
-        train_loader = reader.train_loader(
-            self.vocab,
-            PyTorchPTBBenchmarks.BATCH_SIZE,
-            PyTorchPTBBenchmarks.SEQ_LEN,
-            device=device)
-        m = model.small_model(
-            cell_type="lstm_cell",
-            batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
-            max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
-            vocab_size=self.vocab_size).to(device)
-        self._apply_forward("static_lstm_%s_forward" % device, train_loader, m)
-
-    def test_static_lstm_gpu_forward(self):
-        device = "cuda:0"
-        train_loader = reader.train_loader(
-            self.vocab,
-            PyTorchPTBBenchmarks.BATCH_SIZE,
-            PyTorchPTBBenchmarks.SEQ_LEN,
-            device=device)
-        m = model.small_model(
-            cell_type="lstm_cell",
-            batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
-            max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
-            vocab_size=self.vocab_size).to(device)
-        self._apply_forward("static_lstm_%s_forward" % device, train_loader, m)
-
-    def test_static_lstm_cpu_train(self):
-        device = "cpu"
-        train_loader = reader.train_loader(
-            self.vocab,
-            PyTorchPTBBenchmarks.BATCH_SIZE,
-            PyTorchPTBBenchmarks.SEQ_LEN,
-            device=device)
-        m = model.small_model(
-            cell_type="lstm_cell",
-            batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
-            max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
-            vocab_size=self.vocab_size).to(device)
-        optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
-        self._apply_train("static_lstm_%s_train" % device, train_loader, m,
-                          optimizer)
-
-    def test_static_lstm_gpu_train(self):
-        device = "gpu"
-        train_loader = reader.train_loader(
-            self.vocab,
-            PyTorchPTBBenchmarks.BATCH_SIZE,
-            PyTorchPTBBenchmarks.SEQ_LEN,
-            device=device)
-        m = model.small_model(
-            cell_type="lstm_cell",
-            batch_size=PyTorchPTBBenchmarks.BATCH_SIZE,
-            max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
-            vocab_size=self.vocab_size).to(device)
-        optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
-        self._apply_train("static_lstm_%s_train" % device, train_loader, m,
-                          optimizer)
+        self._apply_train("cudnn_lstm_train", train_loader, m, optimizer)
 
 
 if __name__ == "__main__":
