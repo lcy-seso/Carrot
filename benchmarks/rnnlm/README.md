@@ -89,33 +89,33 @@ In the below tests:
 
 ### CPU
 
-|                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
-|:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.5050        | 85.0492          | 75.2506             |
-| TF Eager (entire-training)                  | 5.2381        | 261.9030         | 24.4365             |
-| TF Graph(forward-only)                      | 0.2687        | 32.2603          | 476.3282            |
-| TF Graph(entire-training)                   | 0.7869        | 39.3426          | 162.6734            |
-| TF Graph whileop-lstm(forward-only)         | 0.2652        | 13.2582          | 482.7189            |
-| TF Graph whileop-lstm(entire-training)      | 0.8653        | 43.2652          | 147.9247            |
-| PyTorch (forward-only)                      | 0.4806        | 24.0279          | 266.3574            |
-| PyTorch (entire-training)                   | 1.9554        | 97.7685          | 65.4607             |
-| PyTorch JIT on outer scope(forward-only)    | 0.4266        | 21.3289          | 300.0617            |
-| PyTorch JIT on outer scope(entire-training) | 2.4091        | 120.4535         | 53.1325             |
+|                                             | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
+|:--------------------------------------------|:---------------------------|:-----------------|:--------------------|
+| TF Eager (forward-only)                     | 1.5050                     | 85.0492          | 75.2506             |
+| TF Eager (entire-training)                  | 5.2381                     | 261.9030         | 24.4365             |
+| TF Graph(forward-only)                      | 0.2687                     | 32.2603          | 476.3282            |
+| TF Graph(entire-training)                   | 0.7869                     | 39.3426          | 162.6734            |
+| TF Graph whileop-lstm(forward-only)         | 0.2652                     | 13.2582          | 482.7189            |
+| TF Graph whileop-lstm(entire-training)      | 0.8653                     | 43.2652          | 147.9247            |
+| PyTorch (forward-only)                      | 2.2809                     | 114.0469         | 56.1173             |
+| PyTorch (entire-training)                   | 7.4425                     | 372.1241         | 17.1986             |
+| PyTorch JIT on outer loop (forwad only)     | 2.1760                     | 108.8008         | 58.8231             |
+| PyTorch JIT on outer loop (entire-training) | 3.9257                     | 196.2826         | 32.6060             |
 
 ### GPU
 
-|                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
-|:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.6109        | 79.4576          | 80.5460             |
-| TF Eager (entire-training)                  | 5.6337        | 281.6842         | 22.7205             |
-| TF Graph(forward-only)                      | 0.0590        | 2.9487           | 2170.4379           |
-| TF Graph (entire-training)                  | 0.0916        | 4.5810           | 1397.0780           |
-| TF Graph whileop-lstm(forward-only)         | 0.0721        | 3.6027           | 1776.4577           |
-| TF Graph whileop-lstm(entire-training)      | 0.1858        | 9.2919           | 688.7714            |
-| PyTorch (forward-only)                      | 0.1707        | 8.5327           | 750.0577            |
-| PyTorch (entire-training)                   | 0.4738        | 23.6913          | 270.1419            |
-| PyTorch JIT on outer scope(forward-only)    | 0.0590        | 2.9511           | 2168.7047           |
-| PyTorch JIT on outer scope(entire-training) | 0.2709        | 13.5444          | 472.5208            |
+|                                             | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
+|:--------------------------------------------|:---------------------------|:-----------------|:--------------------|
+| TF Eager (forward-only)                     | 1.6109                     | 79.4576          | 80.5460             |
+| TF Eager (entire-training)                  | 5.6337                     | 281.6842         | 22.7205             |
+| TF Graph(forward-only)                      | 0.0590                     | 2.9487           | 2170.4379           |
+| TF Graph (entire-training)                  | 0.0916                     | 4.5810           | 1397.0780           |
+| TF Graph whileop-lstm(forward-only)         | 0.0721                     | 3.6027           | 1776.4577           |
+| TF Graph whileop-lstm(entire-training)      | 0.1858                     | 9.2919           | 688.7714            |
+| PyTorch (forward-only)                      | 0.0799                     | 3.9955           | 1601.7834           |
+| PyTorch (entire-training)                   | 0.4145                     | 20.7265          | 308.7830            |
+| PyTorch JIT on outer loop (forwad only)     | 0.0274                     | 1.3683           | 4677.2212           |
+| PyTorch JIT on outer loop (entire-training) | 0.0208                     | 1.0393           | 6158.2539           |
 
 ## Static LSTM
 
@@ -129,39 +129,39 @@ for depth in range(3):  # the outer loop iterates over depth
 
 ### CPU
 
-|                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
-|:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.2225        | 61.1254          | 104.7027            |
-| TF Eager (entire-training)                  | 3.0802        | 154.0104         | 41.5556             |
-| TF Graph(forward-only)                      | 0.2970        | 14.8495          | 430.9899            |
-| TF Graph (entire-training)                  | 0.8478        | 42.3902          | 150.9782            |
-| PyTorch (forward-only)                      | 0.3645        | 18.2256          | 351.1551            |
-| PyTorch (entire-training)                   | 3.0368        | 151.8392         | 42.1498             |
-| PyTorch JIT on outer scope(forward-only)    | 0.3761        | 18.8029          | 340.3738            |
-| PyTorch JIT on outer scope(entire-training) | 2.3677        | 118.3856         | 54.0606             |
+|                                             | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
+|:--------------------------------------------|:---------------------------|:-----------------|:--------------------|
+| TF Eager (forward-only)                     | 1.2225                     | 61.1254          | 104.7027            |
+| TF Eager (entire-training)                  | 3.0802                     | 154.0104         | 41.5556             |
+| TF Graph(forward-only)                      | 0.2970                     | 14.8495          | 430.9899            |
+| TF Graph (entire-training)                  | 0.8478                     | 42.3902          | 150.9782            |
+| PyTorch (forward-only)                      | 2.2640                     | 113.2002         | 56.5370             |
+| PyTorch (entire-training)                   | 2.2636                     | 113.1792         | 56.5475             |
+| PyTorch JIT on outer loop (forwad only)     | 7.2497                     | 362.4861         | 17.6559             |
+| PyTorch JIT on outer loop (entire-training) | 3.9154                     | 195.7691         | 32.6916             |
 
 ### GPU
 
-|                                             | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
-|:--------------------------------------------|:--------------|:-----------------|:--------------------|
-| TF Eager (forward-only)                     | 1.1988        | 59.9422          | 106.7695            |
-| TF Eager (entire-training)                  | 3.0028        | 150.1442         | 42.6257             |
-| TF Graph(forward-only)                      | 0.0437        | 2.1837           | 2930.8486           |
-| TF Graph (entire-training)                  | 0.0707        | 3.5330           | 1811.4876           |
-| PyTorch (forward-only)                      | 0.0331        | 1.6533           | 3871.1344           |
-| PyTorch (entire-training)                   | 0.1091        | 5.4549           | 1173.2491           |
-| PyTorch JIT on outer scope(forward-only)    | 0.0251        | 1.2549           | 5100.0342           |
-| PyTorch JIT on outer scope(entire-training) | 0.1004        | 5.0185           | 1275.2917           |
+|                                             | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
+|:--------------------------------------------|:---------------------------|:-----------------|:--------------------|
+| TF Eager (forward-only)                     | 1.1988                     | 59.9422          | 106.7695            |
+| TF Eager (entire-training)                  | 3.0028                     | 150.1442         | 42.6257             |
+| TF Graph(forward-only)                      | 0.0437                     | 2.1837           | 2930.8486           |
+| TF Graph (entire-training)                  | 0.0707                     | 3.5330           | 1811.4876           |
+| PyTorch (forward-only)                      | 0.0184                     | 0.9197           | 6958.9269           |
+| PyTorch (entire-training)                   | 0.0127                     | 0.6368           | 10050.6155          |
+| PyTorch JIT on outer loop (forwad only)     | 0.1695                     | 8.4743           | 755.2257            |
+| PyTorch JIT on outer loop (entire-training) | 0.0180                     | 0.8975           | 7130.6935           |
 
 ## CuDNN LSTM
 
 Implement the entire LSTM network in a monolithic kernel with plenty of manual optimizations.
 
-|                            | Wall Time (s) | Elapsed Time (s) | Sequence per Second |
-|:---------------------------|:--------------|:-----------------|:--------------------|
-| TF-Egaer (forward-only)    | 0.1469        | 7.3467           | 871.1441            |
-| TF-Eager (entrie-training) | 0.5271        | 26.3526          | 242.8605            |
-| TF-Graph (forward-only)    | 0.0297        | 1.4842           | 4312.2252           |
-| TF-Graph (entrie-training) | 0.0311        | 1.5530           | 4120.9726           |
-| PyTorch (forward-only)     | 0.0086        | 0.4291           | 14916.2879          |
-| PyTorch (entire-training)  | 0.0236        | 1.1809           | 5419.7600           |
+|                            | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
+|:---------------------------|:---------------------------|:-----------------|:--------------------|
+| TF-Egaer (forward-only)    | 0.1469                     | 7.3467           | 871.1441            |
+| TF-Eager (entrie-training) | 0.5271                     | 26.3526          | 242.8605            |
+| TF-Graph (forward-only)    | 0.0297                     | 1.4842           | 4312.2252           |
+| TF-Graph (entrie-training) | 0.0311                     | 1.5530           | 4120.9726           |
+| PyTorch (forward-only)     | 0.0084                     | 0.4200           | 15237.7638          |
+| PyTorch (entire-training)  | 0.0252                     | 1.2608           | 5076.1800           |
