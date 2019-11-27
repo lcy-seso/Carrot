@@ -7,8 +7,6 @@ from dataset import ptb
 
 __all__ = [
     'train_loader',
-    'test_loader',
-    'valid_loader',
     'vocab',
 ]
 
@@ -33,23 +31,3 @@ def train_loader(vocab,
                  device="cpu"):
     x, y = ptb.train(vocab, max_length, stride)
     return batch_input(x, y, batch_size, shuffle, device)
-
-
-def test_loader(vocab,
-                batch_size,
-                max_length=50,
-                stride=3,
-                shuffle=False,
-                device="cpu"):
-    x, y = ptb.test(vocab, max_length, stride)
-    return batch_input(x.T, y.T, batch_size, shuffle, device)
-
-
-def valid_loader(vocab,
-                 batch_size,
-                 max_length=50,
-                 stride=3,
-                 shuffle=False,
-                 device="cpu"):
-    x, y = ptb.valid(vocab, max_length, stride)
-    return batch_input(x.T, y.T, batch_size, shuffle, device)

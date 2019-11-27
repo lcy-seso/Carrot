@@ -1,5 +1,6 @@
 *.txt
 !requirements*.txt
+*.log
 *.tgz
 *.gz
 *.pyc
