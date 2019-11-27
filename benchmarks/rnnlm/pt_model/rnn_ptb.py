@@ -1,4 +1,3 @@
-import pdb
 from math import sqrt
 from typing import Tuple, List
 
