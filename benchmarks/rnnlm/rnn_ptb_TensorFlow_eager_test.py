@@ -1,4 +1,5 @@
 import os
+import logging
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Only print error information.
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 import sys
@@ -17,35 +18,43 @@ def force_gpu_sync():
     tf.constant(1).gpu().cpu()
 
 
-class PTBBenchmarks(tf.test.Benchmark):
+class TFEagerPTBBenchmarks(tf.test.Benchmark):
     BATCH_SIZE = 128
     SEQ_LEN = 50
     ITERS = 50
 
-    def __init__(self):
-        self.vocab = reader.vocab()
+    LOG_DEBUG_INFO = 0
 
-    def _report(self, test_name, start, num_iters, dev, batch_size):
+    def __init__(self):
+        tf.compat.v2.random.set_seed(1234)
+        self.vocab = reader.vocab()
+        self._init_logger()
+
+    def _init_logger(self):
+        self.logger = logging.getLogger("TF_eager_logger")
+        self.logger.setLevel = (logging.DEBUG
+                                if TFEagerPTBBenchmarks.LOG_DEBUG_INFO else
+                                logging.INFO),
+        self.logger.propagate = False
+        fh = logging.FileHandler(
+            filename="tensorflow_eager_ptb_rnn.log", mode="w")
+        fh.setFormatter(logging.Formatter(fmt="%(message)s"))
+        fh.setLevel(logging.DEBUG
+                    if TFEagerPTBBenchmarks.LOG_DEBUG_INFO else logging.INFO)
+        self.logger.addHandler(fh)
+
+    def _report(self, test_name, start):
         """
         Args:
             test_name (String): Name of the test.
             start (String): Timestamp of the start time.
-            num_iters (Int): Number of tested iterations.
-            dev (String): Device that on which the test is running. cpu or gpu.
-            batch_size (Int): Batch size.
         """
-        total_time = time.time() - start
-        wall_time = total_time / num_iters
-        name = "%s_%s_batch_%d" % (test_name, dev, batch_size)
-        examples_per_sec = batch_size / wall_time
-        self.report_benchmark(
-            iters=num_iters,
-            wall_time=wall_time,
-            name=name,
-            extras={
-                "examples_per_sec": examples_per_sec,
-                "time_elapsed": total_time
-            })
+        elapsed_time = time.time() - start
+        average_time = elapsed_time / TFEagerPTBBenchmarks.ITERS
+        seq_per_sec = (TFEagerPTBBenchmarks.ITERS *
+                       TFEagerPTBBenchmarks.BATCH_SIZE) / elapsed_time
+        self.logger.info(("|%s|%.4f\t|%.4f\t|%.4f|") %
+                         (test_name, average_time, elapsed_time, seq_per_sec))
 
     def _benchmark_apply(self, dev, test_name, model):
         """Only Test the forward computation.
@@ -59,8 +68,8 @@ class PTBBenchmarks(tf.test.Benchmark):
         # instead of using real data.
         inputs = reader.train_batch(
             self.vocab,
-            PTBBenchmarks.BATCH_SIZE,
-            max_length=PTBBenchmarks.SEQ_LEN,
+            TFEagerPTBBenchmarks.BATCH_SIZE,
+            max_length=TFEagerPTBBenchmarks.SEQ_LEN,
             shuffle=False,
             eager_execution=True)
 
@@ -73,33 +82,31 @@ class PTBBenchmarks(tf.test.Benchmark):
 
             start = time.time()
             for i, (x, y) in enumerate(inputs):
-                if i == PTBBenchmarks.ITERS:
+                if i == TFEagerPTBBenchmarks.ITERS:
                     break
                 model(x)
-            self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
-                         PTBBenchmarks.BATCH_SIZE)
+            self._report(test_name, start)
 
-    def benchmark_fine_grained_op_lstm_cpu_forward_small(self):
-        self._benchmark_apply(
-            "cpu", "eager_finegrained_op_lstm_cpu_forward_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
-
-    def benchmark_fine_grained_op_lstm_gpu_forward_small(self):
-        self._benchmark_apply(
-            "gpu", "eager_finegrained_op_lstm_gpu_forward_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+    def benchmark_fine_grained_op_lstm_forward(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_apply(
+                device, f"eager_finegrained_op_lstm_{device}_forward",
+                small_model(
+                    vocab_size=len(self.vocab),
+                    rnn_type="fine_grained_op_lstm"))
 
     def benchmark_staticlstm_cpu_forward_small(self):
-        self._benchmark_apply(
-            "cpu", "eager_staticlstm_cpu_forward_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
-
-    def benchmark_staticlstm_gpu_forward_small(self):
-        self._benchmark_apply(
-            "gpu", "eager_staticlstm_gpu_forward_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_apply(
+                device, f"eager_staticlstm_{device}_forward",
+                small_model(
+                    vocab_size=len(self.vocab), rnn_type="static_lstm"))
 
     def benchmark_cudnnlstm_forward_small(self):
         self._benchmark_apply(
@@ -123,8 +130,8 @@ class PTBBenchmarks(tf.test.Benchmark):
 
         inputs = reader.train_batch(
             self.vocab,
-            PTBBenchmarks.BATCH_SIZE,
-            max_length=PTBBenchmarks.SEQ_LEN,
+            TFEagerPTBBenchmarks.BATCH_SIZE,
+            max_length=TFEagerPTBBenchmarks.SEQ_LEN,
             shuffle=False,
             eager_execution=True)
         with tf.device(tu.device(dev)):
@@ -140,34 +147,32 @@ class PTBBenchmarks(tf.test.Benchmark):
 
             start = time.time()
             for i, (x, y) in enumerate(inputs):
-                if i == PTBBenchmarks.ITERS:
+                if i == TFEagerPTBBenchmarks.ITERS:
                     break
                 _step(x, y)
             force_gpu_sync()
-            self._report(test_name, start, PTBBenchmarks.ITERS, tu.device(dev),
-                         PTBBenchmarks.BATCH_SIZE)
+            self._report(test_name, start)
 
-    def benchmark_fine_grained_op_lstm_cpu_train_small(self):
-        self._benchmark_train(
-            "cpu", "eager_finegrained_op_lstm_cpu_train_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
+    def benchmark_fine_grained_op_lstm_train(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_train(
+                device, f"eager_finegrained_op_lstm_{device}_train",
+                small_model(
+                    vocab_size=len(self.vocab),
+                    rnn_type="fine_grained_op_lstm"))
 
-    def benchmark_fine_grained_op_lstm_gpu_train_small(self):
-        self._benchmark_train(
-            "gpu", "eager_finegrained_op_lstm_gpu_train_small",
-            small_model(
-                vocab_size=len(self.vocab), rnn_type="fine_grained_op_lstm"))
-
-    def benchmark_staticlstm_train_cpu_small(self):
-        self._benchmark_train(
-            "cpu", "eager_staticlstm_train_cpu_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
-
-    def benchmark_staticlstm_train_gpu_small(self):
-        self._benchmark_train(
-            "gpu", "eager_staticlstm_train_gpu_small",
-            small_model(vocab_size=len(self.vocab), rnn_type="static_lstm"))
+    def benchmark_staticlstm_train(self):
+        for device in [
+                "cpu",
+                "gpu",
+        ]:
+            self._benchmark_train(
+                device, f"eager_staticlstm_{device}_train",
+                small_model(
+                    vocab_size=len(self.vocab), rnn_type="static_lstm"))
 
     def benchmark_cudnnlstm_train_small(self):
         self._benchmark_train(

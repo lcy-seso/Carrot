@@ -19,27 +19,31 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
     SEQ_LEN = 50
     ITERS = 50
 
-    LOG_DEBUG = False
+    LOG_DEBUG_INFO = 0
 
     def setUp(self):
         self.vocab = reader.vocab()
         self.vocab_size = len(self.vocab)
         torch.manual_seed(1234)
 
-        self.init_logger()
+        self._init_logger()
 
-    def init_logger(self):
+    def _init_logger(self):
         self.logger = logging.getLogger()
+        logging.basicConfig(
+            level=(logging.DEBUG
+                   if PyTorchPTBBenchmarks.LOG_DEBUG_INFO else logging.INFO),
+            filename="pytorch_ptb_rnn.log",
+            filemode="w",
+            format="%(message)s")
 
-        handler = logging.StreamHandler()
-        handler.setFormatter(
-            logging.Formatter(fmt=("%(levelname)s %(message)s")))
-        self.logger.addHandler(handler)
-
-        handler.setLevel(logging.DEBUG
-                         if PyTorchPTBBenchmarks.LOG_DEBUG else logging.INFO)
-        self.logger.setLevel(logging.DEBUG if PyTorchPTBBenchmarks.LOG_DEBUG
-                             else logging.INFO)
+    def _report(self, test_name, start):
+        elapsed_time = time() - start
+        average_time = elapsed_time / PyTorchPTBBenchmarks.ITERS
+        seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
+                       PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
+        self.logger.info(("|%s|%.4f\t|%.4f\t|%.4f|") %
+                         (test_name, average_time, elapsed_time, seq_per_sec))
 
     def _apply_forward(self, test_name, data_loader, model):
         model.train()
@@ -53,15 +57,7 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
         for batch_idx, (x, y) in enumerate(data_loader, start=1):
             output, _ = model(x)
             if batch_idx == PyTorchPTBBenchmarks.ITERS:
-                elapsed_time = time() - start
-                average_time = elapsed_time / PyTorchPTBBenchmarks.ITERS
-                seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
-                               PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
-                self.logger.info(
-                    ("\n||Average Time per Batch\t"
-                     "|Elapsed Time\t|Sequence per Second\n"
-                     "|%s|%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
-                                                  elapsed_time, seq_per_sec))
+                self._report(test_name, start)
                 break
 
     def _apply_train(self, test_name, data_loader, model, optimizer) -> float:
@@ -87,18 +83,10 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
             _step(batch_idx, x, y)
 
             if batch_idx == PyTorchPTBBenchmarks.ITERS:
-                elapsed_time = time() - start
-                average_time = elapsed_time / PyTorchPTBBenchmarks.ITERS
-                seq_per_sec = (PyTorchPTBBenchmarks.ITERS *
-                               PyTorchPTBBenchmarks.BATCH_SIZE) / elapsed_time
-                self.logger.info(
-                    ("\n||Average Time per Batch\t"
-                     "|Elapsed Time\t|Sequence per Second\n"
-                     "|%s|%.4f\t|%.4f\t|%.4f") % (test_name, average_time,
-                                                  elapsed_time, seq_per_sec))
+                self._report(test_name, start)
                 break
 
-    def test_fine_grained_lstm_forward(self):
+    def test_fine_grained_op_lstm_forward(self):
         for enable_jit in [
                 False,
                 True,
@@ -119,11 +107,11 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
                     vocab_size=self.vocab_size,
                     enable_jit=enable_jit).to(device)
 
-                test_name = f'fine_grained_lstm_{device}_forward' + (
-                    '_JIT' if enable_jit else '')
+                test_name = f"fine_grained_lstm_{device}_forward" + (
+                    "_JIT" if enable_jit else "")
                 self._apply_forward(test_name, train_loader, m)
 
-    def test_fine_grained_lstm_train(self):
+    def test_fine_grained_op_lstm_train(self):
         for enable_jit in [
                 False,
                 True,
@@ -145,8 +133,8 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
                     enable_jit=enable_jit).to(device)
                 optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
 
-                test_name = f'fine_grained_lstm_{device}_train' + (
-                    '_JIT' if enable_jit else '')
+                test_name = f"fine_grained_lstm_{device}_train" + (
+                    "_JIT" if enable_jit else "")
                 self._apply_train(test_name, train_loader, m, optimizer)
 
     def test_static_lstm_forward(self):
@@ -169,9 +157,9 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
                     max_seq_length=PyTorchPTBBenchmarks.SEQ_LEN,
                     vocab_size=self.vocab_size,
                     enable_jit=enable_jit).to(device)
-                test_name = f'static_lstm_{device}_forward' + ('_JIT'
+                test_name = f"static_lstm_{device}_forward" + ("_JIT"
                                                                if enable_jit
-                                                               else '')
+                                                               else "")
                 self._apply_forward(test_name, train_loader, m)
 
     def test_static_lstm_train(self):
@@ -196,9 +184,9 @@ class PyTorchPTBBenchmarks(unittest.TestCase):
                     enable_jit=enable_jit).to(device)
                 optimizer = torch.optim.Adam(m.parameters(), lr=1e-3)
 
-                test_name = f'static_lstm_{device}_train' + ('_JIT'
+                test_name = f"static_lstm_{device}_train" + ("_JIT"
                                                              if enable_jit else
-                                                             '')
+                                                             "")
                 self._apply_train(test_name, train_loader, m, optimizer)
 
     def test_cudnn_lstm_forward(self):
