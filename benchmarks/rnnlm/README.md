@@ -148,45 +148,45 @@ In the below tests:
 
 1.  Forward Only
 
-    |                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
-    |:-------------------------|:--------------------------|:----------------|:---------------------------|
-    | TensorFlow-Eager         | 0.5960                    | 29.8003         | 214.7626                   |
-    | TensorFlow-Graph         | 0.2181                    | 10.9072         | 586.7664                   |
-    | TensorFlow-Graph-whileop | 0.1886                    | 9.4304          | 678.6581                   |
-    | PyTorch                  | 0.3483                    | 17.4164         | 367.4705                   |
-    | PyTorch-JITed-LSTM       | 0.2596                    | 12.9794         | 493.0890                   |
+|                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager         | 0.5960                    | 29.8003         | 214.7626                   |
+| TensorFlow-Graph         | 0.2181                    | 10.9072         | 586.7664                   |
+| TensorFlow-Graph-whileop | 0.1886                    | 9.4304          | 678.6581                   |
+| PyTorch                  | 0.3483                    | 17.4164         | 367.4705                   |
+| PyTorch-JITed-LSTM       | 0.2596                    | 12.9794         | 493.0890                   |
 
 2.  Entire Training
 
-    |                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
-    |:-------------------------|:--------------------------|:----------------|:---------------------------|
-    | TensorFlow-Eager         | 1.6727                    | 83.6353         | 76.5227                    |
-    | TensorFlow-Graph         | 0.6942                    | 34.7123         | 184.3728                   |
-    | TensorFlow-Graph-whileop | 0.1850                    | 9.2524          | 691.7107                   |
-    | PyTorch                  | 1.1339                    | 56.6953         | 112.8841                   |
-    | PyTorch-JITed-LSTM       | 0.4568                    | 22.8402         | 280.2074                   |
+|                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager         | 1.6727                    | 83.6353         | 76.5227                    |
+| TensorFlow-Graph         | 0.6942                    | 34.7123         | 184.3728                   |
+| TensorFlow-Graph-whileop | 0.1850                    | 9.2524          | 691.7107                   |
+| PyTorch                  | 1.1339                    | 56.6953         | 112.8841                   |
+| PyTorch-JITed-LSTM       | 0.4568                    | 22.8402         | 280.2074                   |
 
 ### GPU
 
 1.  Forward Only
 
-    |                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
-    |:-------------------------|:--------------------------|:----------------|:---------------------------|
-    | TensorFlow-Eager         | 0.1889                    | 9.4431          | 677.7404                   |
-    | TensorFlow-Graph         | 0.0515                    | 2.5746          | 2485.8505                  |
-    | TensorFlow-Graph-whileop | 0.0706                    | 3.5285          | 1813.7786                  |
-    | PyTorch                  | 0.0735                    | 3.6750          | 1741.5058                  |
-    | PyTorch-JITed-LSTM       | 0.0206                    | 1.0318          | 6202.5344                  |
+|                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager         | 0.1889                    | 9.4431          | 677.7404                   |
+| TensorFlow-Graph         | 0.0515                    | 2.5746          | 2485.8505                  |
+| TensorFlow-Graph-whileop | 0.0706                    | 3.5285          | 1813.7786                  |
+| PyTorch                  | 0.0735                    | 3.6750          | 1741.5058                  |
+| PyTorch-JITed-LSTM       | 0.0206                    | 1.0318          | 6202.5344                  |
 
 2.  Entire Training
 
-    |                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
-    |:-------------------------|:--------------------------|:----------------|:---------------------------|
-    | TensorFlow-Eager         | 0.4905                    | 24.5258         | 260.9500                   |
-    | TensorFlow-Graph         | 0.0855                    | 4.2728          | 1497.8342                  |
-    | TensorFlow-Graph-whileop | 0.0644                    | 3.2195          | 1987.8861                  |
-    | PyTorch                  | 0.3897                    | 19.4860         | 328.4403                   |
-    | PyTorch-JITed-LSTM       | 0.0256                    | 1.2789          | 5004.2944                  |
+|                          | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager         | 0.4905                    | 24.5258         | 260.9500                   |
+| TensorFlow-Graph         | 0.0855                    | 4.2728          | 1497.8342                  |
+| TensorFlow-Graph-whileop | 0.0644                    | 3.2195          | 1987.8861                  |
+| PyTorch                  | 0.3897                    | 19.4860         | 328.4403                   |
+| PyTorch-JITed-LSTM       | 0.0256                    | 1.2789          | 5004.2944                  |
 
 ## Static LSTM
 
@@ -202,41 +202,41 @@ for depth in range(3):  # the outer loop iterates over depth
 
 1.  Forward Only
 
-    |                    | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
-    |:-------------------|:--------------------------|:----------------|:---------------------------|
-    | TensorFlow-Eager   | 0.4646                    | 23.2281         | 275.5281                   |
-    | TensorFlow-Graph   | 0.2360                    | 11.8022         | 542.2732                   |
-    | PyTorch            | 0.2406                    | 12.0316         | 531.9346                   |
-    | PyTorch-JITed-LSTM | 0.2298                    | 11.4920         | 556.9071                   |
+|                    | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager   | 0.4646                    | 23.2281         | 275.5281                   |
+| TensorFlow-Graph   | 0.2360                    | 11.8022         | 542.2732                   |
+| PyTorch            | 0.2406                    | 12.0316         | 531.9346                   |
+| PyTorch-JITed-LSTM | 0.2298                    | 11.4920         | 556.9071                   |
 
 2.  Entire Training
 
-    |                    | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
-    |:-------------------|:--------------------------|:----------------|:---------------------------|
-    | TensorFlow-Eager   | 1.1522                    | 57.6109         | 111.0901                   |
-    | TensorFlow-Graph   | 0.7444                    | 37.2208         | 171.9470                   |
-    | PyTorch            | 1.0352                    | 51.7581         | 123.6522                   |
-    | PyTorch-JITed-LSTM | 0.4726                    | 23.6304         | 270.8372                   |
+|                    | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager   | 1.1522                    | 57.6109         | 111.0901                   |
+| TensorFlow-Graph   | 0.7444                    | 37.2208         | 171.9470                   |
+| PyTorch            | 1.0352                    | 51.7581         | 123.6522                   |
+| PyTorch-JITed-LSTM | 0.4726                    | 23.6304         | 270.8372                   |
 
 ### GPU
 
 1.  Forward Only
 
-    |                    | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
-    |:-------------------|:---------------------------|:-----------------|:--------------------|
-    | TensorFlow-Eager   | 0.1324                     | 6.6212           | 966.5995            |
-    | TensorFlow-Graph   | 0.0469                     | 2.3438           | 2730.6428           |
-    | PyTorch            | 0.0170                     | 0.8510           | 7520.6056           |
-    | PyTorch-JITed-LSTM | 0.0117                     | 0.5859           | 10922.5600          |
+|                    | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager   | 0.1324                    | 6.6212          | 966.5995                   |
+| TensorFlow-Graph   | 0.0469                    | 2.3438          | 2730.6428                  |
+| PyTorch            | 0.0170                    | 0.8510          | 7520.6056                  |
+| PyTorch-JITed-LSTM | 0.0117                    | 0.5859          | 10922.5600                 |
 
 2.  Entire Training
 
-    |                    | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
-    |:-------------------|:---------------------------|:-----------------|:--------------------|
-    | TensorFlow-Eager   | 0.2800                     | 13.9977          | 457.2177            |
-    | TensorFlow-Graph   | 0.0713                     | 3.5648           | 1795.3176           |
-    | PyTorch            | 0.1588                     | 7.9408           | 805.9623            |
-    | PyTorch-JITed-LSTM | 0.0169                     | 0.8441           | 7582.1600           |
+|                    | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-------------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager   | 0.2800                    | 13.9977         | 457.2177                   |
+| TensorFlow-Graph   | 0.0713                    | 3.5648          | 1795.3176                  |
+| PyTorch            | 0.1588                    | 7.9408          | 805.9623                   |
+| PyTorch-JITed-LSTM | 0.0169                    | 0.8441          | 7582.1600                  |
 
 ## CuDNN LSTM
 
@@ -250,19 +250,19 @@ PyTorch's current implementation invokes the CuDNN LSTM API for stacked LSTM in 
 
 1.  Forward Only
 
-    |                  | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
-    |:-----------------|:---------------------------|:-----------------|:--------------------|
-    | TensorFlow-Eager | 0.0203                     | 1.0155           | 6302.4602           |
-    | TensorFlow-Graph | 0.0302                     | 1.5079           | 4244.3851           |
-    | PyTorch          | 0.0058                     | 0.2883           | 22202.3084          |
+|                  | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-----------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager | 0.0203                    | 1.0155          | 6302.4602                  |
+| TensorFlow-Graph | 0.0302                    | 1.5079          | 4244.3851                  |
+| PyTorch          | 0.0058                    | 0.2883          | 22202.3084                 |
 
 2.  Entire Training
 
-    |                  | Average Time per Batch (s) | Elapsed Time (s) | Sequence per Second |
-    |:-----------------|:---------------------------|:-----------------|:--------------------|
-    | TensorFlow-Eager | 0.0521                     | 2.6055           | 2456.3781           |
-    | TensorFlow-Graph | 0.0321                     | 1.6038           | 3990.3984           |
-    | PyTorch          | 0.0235                     | 1.1772           | 5436.6047           |
+|                  | Average Time per Batch(s) | Elapsed Time(s) | Throughput<br>(sequence/s) |
+|:-----------------|:--------------------------|:----------------|:---------------------------|
+| TensorFlow-Eager | 0.0521                    | 2.6055          | 2456.3781                  |
+| TensorFlow-Graph | 0.0321                    | 1.6038          | 3990.3984                  |
+| PyTorch          | 0.0235                    | 1.1772          | 5436.6047                  |
 
 ## Reference
 
