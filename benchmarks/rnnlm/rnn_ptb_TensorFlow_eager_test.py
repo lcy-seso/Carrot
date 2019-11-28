@@ -174,9 +174,9 @@ class TFEagerPTBBenchmarks(tf.test.Benchmark):
                 small_model(
                     vocab_size=len(self.vocab), rnn_type="static_lstm"))
 
-    def benchmark_cudnnlstm_train_small(self):
+    def benchmark_cudnnlstm_train(self):
         self._benchmark_train(
-            "gpu", "eager_cudnnlstm_train_small",
+            "gpu", "eager_cudnnlstm_train",
             small_model(vocab_size=len(self.vocab), rnn_type="cudnn_lstm"))
 
 
