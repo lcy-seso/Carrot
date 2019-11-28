@@ -1,4 +1,4 @@
-# Stacked LSTM Language Model in TensorFlow, PyTorch, and Julia
+# Stacked LSTM Language Model in TensorFlow and PyTorch
 
 ## Introduction
 
