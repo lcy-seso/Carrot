@@ -2,6 +2,8 @@ import random
 import argparse
 import torch
 
+from rnncell import LSTMCell
+
 __all__ = [
     "build_args_parser",
     "gen_input_data",
@@ -13,7 +15,7 @@ __all__ = [
 def build_args_parser():
     parser = argparse.ArgumentParser(
         description="Compare different implementation of stacked LSTM")
-    parser.add_argument("--batch_size", type=int, default=4)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--input_dim", type=int, default=2)
     parser.add_argument("--hidden_dim", type=int, default=2)
     parser.add_argument("--grid_dim", type=int, default=2)
@@ -44,14 +46,12 @@ def gen_input_data(batch_size, input_dim, device, MIN_LEN=5, MAX_LEN=25):
 
 
 def model_def(input_dim, hidden_dim, grid_dim, depth, device):
-    return [
-        [
-            torch.nn.LSTMCell(input_dim, hidden_dim).to(device),
-            torch.nn.LSTMCell(input_dim, hidden_dim).to(device),
-            torch.nn.Linear(hidden_dim * grid_dim,
-                            hidden_dim).to(device)  # hidden projection
-        ] for d in range(depth)
-    ]
+    return [[
+        LSTMCell([input_dim, hidden_dim],
+                 [hidden_dim * grid_dim, hidden_dim]).to(device),
+        LSTMCell([input_dim, hidden_dim],
+                 [hidden_dim * grid_dim, hidden_dim]).to(device)
+    ] for d in range(depth)]
 
 
 def init_out_buff(src_length, trg_length, hidden_dim, device):
