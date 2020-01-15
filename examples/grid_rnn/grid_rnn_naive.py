@@ -1,3 +1,10 @@
+"""Forward computation of the Grid Long Short Term Memory network for NMT.
+
+Please refer to the paper "Kalchbrenner, Nal, Ivo Danihelka, and Alex Graves.
+"Grid long short-term memory." arXiv preprint arXiv:1507.01526 (2015)." for
+detail information.
+"""
+
 from typing import List, Tuple
 import torch
 from torch import Tensor
@@ -24,6 +31,15 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
     batch_size = len(src_array_batch)
     depth = len(cells)
 
+    # ===================================== #
+    #    Initialize output buffer           #
+    # ===================================== #
+    # `outputs` is the output buffer. A nested array with a depth 3 is used.
+    # depth 1: for each depth of the neural network;
+    # depth 2: for each direction;
+    # depth 3: for hidden states and cells;
+    outputs: List[List[List[Tensor]]] = []
+
     # data parallelism: iterate over samples in a batch.
     for sample_id in range(0, batch_size, 1):
         x = src_array_batch[sample_id]
@@ -32,9 +48,6 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
         src_length = x.size()[0]
         trg_length = y.size()[0]
 
-        # ===================================== #
-        #    Initialize output buffer           #
-        # ===================================== #
         outputs = []
         for i in range(depth):
             outputs.append(

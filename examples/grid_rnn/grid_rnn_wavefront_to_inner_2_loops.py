@@ -6,15 +6,6 @@ from torch.nn import Module
 from utils import *
 
 
-def __batch(xs: List[Tensor], dim=0) -> Tensor:
-    batch_size = len(xs)
-    return torch.reshape(torch.stack(xs, dim=dim), [batch_size, -1])
-
-
-def __unbatch(x: Tensor, dim=0) -> List[Tensor]:
-    return [a_slice.view(1, -1) for a_slice in torch.unbind(x, dim=dim)]
-
-
 def grid_lstm_skew_inner_2_loops(
         src_array_batch: List[Tensor], trg_array_batch: List[Tensor],
         cells: List[Module], input_dim: int, hidden_dim: int, device: str):
@@ -33,6 +24,15 @@ def grid_lstm_skew_inner_2_loops(
     batch_size = len(src_array_batch)
     depth = len(cells)
 
+    # ===================================== #
+    #    Initialize output buffer           #
+    # ===================================== #
+    # `outputs` is the output buffer. A nested array with a depth 3 is used.
+    # depth 1: for each depth of the neural network;
+    # depth 2: for each direction;
+    # depth 3: for hidden states and cells;
+    outputs: List[List[List[Tensor]]] = []
+
     # data parallelism: iterate over samples in a batch.
     for sample_id in range(0, batch_size, 1):
         x = src_array_batch[sample_id]
@@ -41,9 +41,6 @@ def grid_lstm_skew_inner_2_loops(
         src_length = x.size()[0]
         trg_length = y.size()[0]
 
-        # ===================================== #
-        #    Initialize output buffer           #
-        # ===================================== #
         outputs = []
         for i in range(0, depth, 1):
             outputs.append(
@@ -57,8 +54,8 @@ def grid_lstm_skew_inner_2_loops(
             # ================================================================= #
             # Wavefront transformation to i loop and j loop.                    #
             # 2D transformation matrix for wavefront transformation is:         #
-            #    [[1, 1]  * [i,   = [ i +j,                                     #
-            #     [1, 0]]    j]         i  ]                                    #
+            #    [[1, 1]  * [i,   = [ i + j,                                    #
+            #     [1, 0]]    j]         i   ]                                   #
             # After applying wavefront transformation, the outer i loop is      #
             # sequential, while the inner j loop is able to execute in parallel.#
             # ================================================================= #
@@ -73,7 +70,7 @@ def grid_lstm_skew_inner_2_loops(
                 for j_proj in range(
                         max(1, i_proj - trg_length), min(
                             src_length + 1, i_proj), 1):
-                    # get index in the original iteration space.
+                    # get coordinate values in original iteration space.
                     i = j_proj
                     j = i_proj - j_proj
                     gather_points.append([i, j])

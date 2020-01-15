@@ -1,21 +1,28 @@
+from typing import List, Tuple
+
 import random
 import argparse
 import torch
+from torch import Tensor
 
 from rnncell import LSTMCell
+
+random.seed(1234)
 
 __all__ = [
     "build_args_parser",
     "gen_input_data",
     "model_def",
     "init_out_buff",
+    "__batch",
+    "__unbatch",
 ]
 
 
 def build_args_parser():
     parser = argparse.ArgumentParser(
         description="Compare different implementation of stacked LSTM")
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=2)
     parser.add_argument("--input_dim", type=int, default=2)
     parser.add_argument("--hidden_dim", type=int, default=2)
     parser.add_argument("--grid_dim", type=int, default=2)
@@ -24,7 +31,7 @@ def build_args_parser():
     return parser.parse_args()
 
 
-def gen_input_data(batch_size, input_dim, device, MIN_LEN=5, MAX_LEN=25):
+def gen_input_data(batch_size, input_dim, device, MIN_LEN=2, MAX_LEN=5):
     """ Generate input data.
 
     Returns:
@@ -78,3 +85,12 @@ def zero_states(hidden_dim, device):
         torch.zeros(1, hidden_dim).to(device),
         torch.zeros(1, hidden_dim).to(device)
     ]
+
+
+def __batch(xs: List[Tensor], dim=0) -> Tensor:
+    batch_size = len(xs)
+    return torch.reshape(torch.stack(xs, dim=dim), [batch_size, -1])
+
+
+def __unbatch(x: Tensor, dim=0) -> List[Tensor]:
+    return [a_slice.view(1, -1) for a_slice in torch.unbind(x, dim=dim)]
