@@ -1,4 +1,4 @@
-import pdb
+from itertools import groupby
 
 from typing import List, Tuple
 import torch
@@ -22,38 +22,27 @@ def grid_lstm_skew_to_outermost_loop(
         input_dim: int, the input dimension of RNN cells.
         hidden_dim: int, the output dimension of RNN cells.
     """
-    # batch_size and depth are constants independent of data.
     batch_size = len(src_array_batch)
     depth = len(cells)
 
-    # ===================================== #
-    #    Initialize output buffer           #
-    # ===================================== #
+    # ==================================================================== #
+    #                 Initialize output buffer                             #
+    # ==================================================================== #
     src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
     trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
-    max_src_len = max(src_lens)
-    max_trg_len = max(trg_lens)
 
     # `outputs` is the output buffer. A nested array with a depth 4 is used.
-    # depth 1: for each sample;
-    # depth 2: for each depth of the neural network;
-    # depth 3: for each direction;
-    # depth 4: for hidden states and cells;
-    point_count = 0
     outputs: List[List[List[List[Tensor]]]] = []
     for src_length, trg_length in zip(src_lens, trg_lens):
-        point_count += src_length * trg_length * depth
-
         outputs.append([])
         for i in range(depth):
             outputs[-1].append(
                 init_out_buff(src_length, trg_length, hidden_dim, device))
-    print("total data points = %d" % (point_count))
 
     # ===================================================================== #
     # Wavefront transformation to the entire loop nesting.
     # 4D transformation matrix for the wavefront transformation is:
-    #    [[1, 1, 1, 1]
+    #    [[0, 1, 1, 1]
     #     [1, 0, 0, 0]
     #     [0, 1, 0, 0]
     #     [0, 0, 1, 0]]
@@ -61,51 +50,78 @@ def grid_lstm_skew_to_outermost_loop(
     # sequential, while all the inner loops are able to execute in parallel.
     # This is still NOT the optimal parallelisms.
     # ===================================================================== #
-    gather_points = []
+    trans_points = []
+    for sample_id in range(0, batch_size, 1):
+        src_length = src_array_batch[sample_id].size()[0]
+        trg_length = trg_array_batch[sample_id].size()[0]
+        for d in range(0, depth, 1):
+            for i in range(1, src_length + 1, 1):
+                for j in range(1, trg_length + 1, 1):
+                    trans_points.append([d + i + j, sample_id, d, i])
+    trans_points = sorted(trans_points, key=lambda x: x[0], reverse=False)
 
-    for m in range(0 + 0 + 1 + 1,
-                   batch_size + depth + max_src_len + max_trg_len + 1, 1):
+    for z, value in groupby(trans_points, key=lambda x: x[0]):
+        cell_points = sorted(
+            [p for p in value], key=lambda x: x[2], reverse=False)
 
-        n_low = max(1, m - depth - max_src_len)
-        n_high = min(batch_size, m)
-        print("n = [%d to %d]" % (n_low, n_high))
-        for n in range(max(0, m - depth - max_src_len), min(batch_size, m), 1):
+        for d, data_points in groupby(cell_points, key=lambda x: x[2]):
+            data_points = [d for d in data_points]
 
-            p_low = max(1, n - max_src_len)
-            p_high = min(depth, n)
-            print("n = [%d to %d]" % (p_low, p_high))
-            for p in range(p_low, p_high, 1):  # depth
+            # ===================================================== #
+            #            Gather parallelizable inputs               #
+            # ===================================================== #
+            x_t: List[Tensor] = []
+            y_t: List[Tensor] = []
+            states_x: List[List[Tensor], List[Tensor]] = []
+            states_y: List[List[Tensor], List[Tensor]] = []
+            gather_points = []
+            for p in data_points:
+                sample_id = p[1]
+                i = p[3]
+                j = p[0] - d - p[3]
+                gather_points.append([sample_id, d, i, j])  # write position
 
-                q_low = max(1, p - max_trg_len)
-                q_high = min(max_src_len + 1, p)
-                print("n = [%d to %d]" % (q_low, q_high))
-                for q in range(q_low, q_high, 1):  # src_sequence
-                    # This is the implementation of a schedule function.
-                    # Since the memory acesses satisfy affine constrains,
-                    # the schedule function is possible to be determined by
-                    # solving certain linear programming problem.
-                    # get coordinate values in the original iteration space.
-                    sample_id = m - n - p - q
-                    d = n
-                    i = p
-                    j = q
-                    if i > src_lens[sample_id] or j > trg_lens[sample_id]:
-                        continue
-                    gather_points.append([sample_id, d, i, j])
+                if d == 0:
+                    x_t.append(src_array_batch[sample_id][i - 1, :].view(
+                        1, input_dim))
+                    y_t.append(trg_array_batch[sample_id][j - 1, :].view(
+                        1, input_dim))
+                else:
+                    x_t.append(outputs[sample_id][d - 1][i][j][0][0])
+                    y_t.append(outputs[sample_id][d - 1][i][j][1][0])
+
+                states_x.append(outputs[sample_id][d][i][j - 1][0])
+                states_y.append(outputs[sample_id][d][i - 1][j][1])
+
+            # ========================================================== #
+            #   Batch parallelizable inputs and perform cell computation #
+            # ========================================================== #
+            x_t = __batch(x_t)
+            y_t = __batch(y_t)
+
+            h_x_prev = __batch([state[0] for state in states_x])
+            c_x_prev = __batch([state[1] for state in states_x])
+            h_y_prev = __batch([state[0] for state in states_y])
+            c_y_prev = __batch([state[1] for state in states_y])
+
+            h = torch.cat((h_x_prev, h_y_prev), dim=1)
+            h_x, c_x = cells[d][0](x_t, (h, c_x_prev))
+            h_y, c_y = cells[d][1](y_t, (h, c_y_prev))
+
+            # ========================================================== #
+            #           Scatter outputs                                  #
+            # ========================================================== #
+            h_x = __unbatch(h_x)
+            c_x = __unbatch(c_x)
+            h_y = __unbatch(h_y)
+            c_y = __unbatch(c_y)
+            for num, (sample_id, d, i, j) in enumerate(gather_points):
+                outputs[sample_id][d][i][j][0].append(h_x[num])
+                outputs[sample_id][d][i][j][0].append(c_x[num])
+
+                outputs[sample_id][d][i][j][1].append(h_y[num])
+                outputs[sample_id][d][i][j][1].append(c_y[num])
 
 
 if __name__ == "__main__":
-    args = build_args_parser()
-
-    for device in [
-            "cpu",  #
-            # "cuda:0",
-    ]:
-        cells = model_def(args.input_dim, args.hidden_dim, args.grid_dim,
-                          args.depth, device)
-        src_array_batch, trg_array_batch = gen_input_data(
-            args.batch_size, args.input_dim, device=device)
-
-        grid_lstm_skew_to_outermost_loop(src_array_batch, trg_array_batch,
-                                         cells, args.input_dim,
-                                         args.hidden_dim, device)
+    run_test(grid_lstm_skew_to_outermost_loop)

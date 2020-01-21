@@ -24,14 +24,17 @@ def grid_lstm_skew_inner_2_loops(
     batch_size = len(src_array_batch)
     depth = len(cells)
 
-    # ===================================== #
-    #    Initialize output buffer           #
-    # ===================================== #
-    # `outputs` is the output buffer. A nested array with a depth 3 is used.
-    # depth 1: for each depth of the neural network;
-    # depth 2: for each direction;
-    # depth 3: for hidden states and cells;
-    outputs: List[List[List[Tensor]]] = []
+    # ==================================================================== #
+    #                 Initialize output buffer                             #
+    # ==================================================================== #
+    src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
+    trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
+    outputs: List[List[List[List[Tensor]]]] = []
+    for src_length, trg_length in zip(src_lens, trg_lens):
+        outputs.append([])
+        for i in range(depth):
+            outputs[-1].append(
+                init_out_buff(src_length, trg_length, hidden_dim, device))
 
     # data parallelism: iterate over samples in a batch.
     for sample_id in range(0, batch_size, 1):
@@ -41,15 +44,10 @@ def grid_lstm_skew_inner_2_loops(
         src_length = x.size()[0]
         trg_length = y.size()[0]
 
-        outputs = []
-        for i in range(0, depth, 1):
-            outputs.append(
-                init_out_buff(src_length, trg_length, hidden_dim, device))
-
         for d in range(0, depth, 1):
             cell_x = cells[d][0]
             cell_y = cells[d][1]
-            output_d = outputs[d]
+            output_d = outputs[sample_id][d]
 
             # ================================================================= #
             # Wavefront transformation to i loop and j loop.                    #
@@ -75,15 +73,15 @@ def grid_lstm_skew_inner_2_loops(
                     j = i_proj - j_proj
                     gather_points.append([i, j])
 
-                    # ===================================== #
-                    #            Gather inputs              #
-                    # ===================================== #
+                    # ========================================================== #
+                    #   Batch parallelizable inputs and perform cell computation #
+                    # ========================================================== #
                     if d == 0:
                         x_t.append(x[i - 1, :].view(1, input_dim))
                         y_t.append(y[j - 1, :].view(1, input_dim))
                     else:
-                        x_t.append(outputs[d - 1][i][j][0][0])
-                        y_t.append(outputs[d - 1][i][j][1][0])
+                        x_t.append(outputs[sample_id][d - 1][i][j][0][0])
+                        y_t.append(outputs[sample_id][d - 1][i][j][1][0])
                     states_x.append(output_d[i][j - 1][0])
                     states_y.append(output_d[i - 1][j][1])
 
@@ -102,33 +100,21 @@ def grid_lstm_skew_inner_2_loops(
                 h_x, c_x = cell_x(x_t, (h, c_x_prev))
                 h_y, c_y = cell_y(y_t, (h, c_y_prev))
 
-                # ===================================== #
-                #           Scatter outputs             #
-                # ===================================== #
+                # ========================================================== #
+                #           Scatter outputs                                  #
+                # ========================================================== #
                 h_x = __unbatch(h_x)
                 c_x = __unbatch(c_x)
                 h_y = __unbatch(h_y)
                 c_y = __unbatch(c_y)
 
-                for num, point in enumerate(gather_points):
-                    output_d[point[0]][point[1]][0].append(h_x[num])
-                    output_d[point[0]][point[1]][0].append(c_x[num])
+                for num, (i, j) in enumerate(gather_points):
+                    output_d[i][j][0].append(h_x[num])
+                    output_d[i][j][0].append(c_x[num])
 
-                    output_d[point[0]][point[1]][1].append(h_y[num])
-                    output_d[point[0]][point[1]][1].append(c_y[num])
+                    output_d[i][j][1].append(h_y[num])
+                    output_d[i][j][1].append(c_y[num])
 
 
 if __name__ == "__main__":
-    args = build_args_parser()
-
-    for device in [
-            "cpu",
-            "cuda:0",
-    ]:
-        cells = model_def(args.input_dim, args.hidden_dim, args.grid_dim,
-                          args.depth, device)
-        src_array_batch, trg_array_batch = gen_input_data(
-            args.batch_size, args.input_dim, device=device)
-
-        grid_lstm_skew_inner_2_loops(src_array_batch, trg_array_batch, cells,
-                                     args.input_dim, args.hidden_dim, device)
+    run_test(grid_lstm_skew_inner_2_loops)

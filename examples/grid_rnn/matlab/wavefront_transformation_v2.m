@@ -64,12 +64,6 @@ box on
 hold on
 grid on
 
-%% Plot hyperplanes.
-
-for zvalue = 2:12
-    plot_hyperplane(0,3,1,5, zvalue, 'red')
-end
-
 %% Plot transformed points.
 scatter3(points_z, points_x, points_x + points_y + points_z,...
     'Marker','+','LineWidth', 4,...

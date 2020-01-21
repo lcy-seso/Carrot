@@ -4,6 +4,7 @@ Please refer to the paper "Kalchbrenner, Nal, Ivo Danihelka, and Alex Graves.
 "Grid long short-term memory." arXiv preprint arXiv:1507.01526 (2015)." for
 detail information.
 """
+import time
 
 from typing import List, Tuple
 import torch
@@ -31,15 +32,19 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
     batch_size = len(src_array_batch)
     depth = len(cells)
 
-    # ===================================== #
-    #    Initialize output buffer           #
-    # ===================================== #
-    # `outputs` is the output buffer. A nested array with a depth 3 is used.
-    # depth 1: for each depth of the neural network;
-    # depth 2: for each direction;
-    # depth 3: for hidden states and cells;
-    outputs: List[List[List[Tensor]]] = []
+    # ==================================================================== #
+    #                 Initialize output buffer                             #
+    # ==================================================================== #
+    src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
+    trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
 
+    # `outputs` is the output buffer. A nested array with a depth 4 is used.
+    outputs: List[List[List[List[Tensor]]]] = []
+    for src_length, trg_length in zip(src_lens, trg_lens):
+        outputs.append([])
+        for i in range(depth):
+            outputs[-1].append(
+                init_out_buff(src_length, trg_length, hidden_dim, device))
     # data parallelism: iterate over samples in a batch.
     for sample_id in range(0, batch_size, 1):
         x = src_array_batch[sample_id]
@@ -47,11 +52,6 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
 
         src_length = x.size()[0]
         trg_length = y.size()[0]
-
-        outputs = []
-        for i in range(depth):
-            outputs.append(
-                init_out_buff(src_length, trg_length, hidden_dim, device))
 
         # dim 1: stack Grid LSTM Cell to form depth.
         for d in range(0, depth, 1):
@@ -66,7 +66,7 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
                     cell_x = cells[d][0]
                     cell_y = cells[d][1]
 
-                    output_d = outputs[d]
+                    output_d = outputs[sample_id][d]
 
                     if d == 0:
                         x_t = x[i - 1, :].view(1, input_dim)
@@ -79,8 +79,8 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
                         # current implementation, the depth direction can  #
                         # also form recurrent computation.                 #
                         # ================================================ #
-                        x_t = outputs[d - 1][i][j][0][0]
-                        y_t = outputs[d - 1][i][j][1][0]
+                        x_t = outputs[sample_id][d - 1][i][j][0][0]
+                        y_t = outputs[sample_id][d - 1][i][j][1][0]
                     states_x = output_d[i][j - 1][0]
                     states_y = output_d[i - 1][j][1]
 
@@ -107,16 +107,4 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
 
 
 if __name__ == "__main__":
-    args = build_args_parser()
-
-    for device in [
-            "cpu",
-            "cuda:0",
-    ]:
-        cells = model_def(args.input_dim, args.hidden_dim, args.grid_dim,
-                          args.depth, device)
-        src_array_batch, trg_array_batch = gen_input_data(
-            args.batch_size, args.input_dim, device=device)
-
-        naive_grid_lstm(src_array_batch, trg_array_batch, cells,
-                        args.input_dim, args.hidden_dim, device)
+    run_test(naive_grid_lstm)

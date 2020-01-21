@@ -18,5 +18,3 @@ function [outputArg1,outputArg2] = plot_one_rhombus_cube(...
     h = patch('Faces',F,'Vertices',V);
     set(h,'facealpha',0.05)
     set(h,'facecolor',color)
-end
-
