@@ -52,7 +52,8 @@ def grid_lstm_skew_inner_3_loops(
         #     [1, 0, 0],    i,       i,                                     #
         #     [0, 1, 0]]    j]       j        ]                             #
         # After applying wavefront transformation, the outer i loop is      #
-        # sequential, while the inner j loop is able to execute in parallel.#
+        # sequential, while the inner i and j loop is able to execute in    #
+        # parallel.                                                         #
         # ================================================================= #
         trans_points = []
         for d in range(0, depth, 1):

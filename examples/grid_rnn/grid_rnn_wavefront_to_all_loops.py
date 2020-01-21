@@ -62,7 +62,7 @@ def grid_lstm_skew_to_outermost_loop(
 
     for z, value in groupby(trans_points, key=lambda x: x[0]):
         cell_points = sorted(
-            [p for p in value], key=lambda x: x[1], reverse=False)
+            [p for p in value], key=lambda x: x[2], reverse=False)
 
         for d, data_points in groupby(cell_points, key=lambda x: x[2]):
             data_points = [d for d in data_points]

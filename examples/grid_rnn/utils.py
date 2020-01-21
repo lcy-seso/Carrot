@@ -9,6 +9,9 @@ from torch import Tensor
 from rnncell import LSTMCell
 
 random.seed(1234)
+torch.manual_seed(1234)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed_all(1234)
 
 __all__ = [
     "gen_input_data",
@@ -23,7 +26,7 @@ __all__ = [
 def build_args_parser():
     parser = argparse.ArgumentParser(
         description="Compare different implementation of stacked LSTM")
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--input_dim", type=int, default=64)
     parser.add_argument("--hidden_dim", type=int, default=64)
     parser.add_argument("--grid_dim", type=int, default=2)
