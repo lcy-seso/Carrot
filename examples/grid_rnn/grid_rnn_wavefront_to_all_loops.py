@@ -42,7 +42,7 @@ def grid_lstm_skew_to_outermost_loop(
     # ===================================================================== #
     # Wavefront transformation to the entire loop nesting.
     # 4D transformation matrix for the wavefront transformation is:
-    #    [[1, 1, 1, 1]
+    #    [[0, 1, 1, 1]
     #     [1, 0, 0, 0]
     #     [0, 1, 0, 0]
     #     [0, 0, 1, 0]]
@@ -57,8 +57,7 @@ def grid_lstm_skew_to_outermost_loop(
         for d in range(0, depth, 1):
             for i in range(1, src_length + 1, 1):
                 for j in range(1, trg_length + 1, 1):
-                    trans_points.append(
-                        [sample_id + d + i + j, sample_id, d, i])
+                    trans_points.append([d + i + j, sample_id, d, i])
     trans_points = sorted(trans_points, key=lambda x: x[0], reverse=False)
 
     for z, value in groupby(trans_points, key=lambda x: x[0]):
@@ -79,7 +78,7 @@ def grid_lstm_skew_to_outermost_loop(
             for p in data_points:
                 sample_id = p[1]
                 i = p[3]
-                j = p[0] - p[1] - d - p[3]
+                j = p[0] - d - p[3]
                 gather_points.append([sample_id, d, i, j])  # write position
 
                 if d == 0:
