@@ -18,22 +18,22 @@ plot_a_sample(depth,4,7,'b', 'b')
 % mesh(x,y,z)
 
 %% perpendicular to x axis
-% [y, z] = meshgrid(1:P, 0:M);
-% x = zeros(M, P);
-% mesh(x,y,z)
-% 
-% x = N * ones(M, P);
-% mesh(x,y,z)
-% 
-% %% perpendicular to y axis
-% [x, z] = meshgrid(1:N, 0:M-1);
-% y = zeros(M, N);
-% mesh(x,y,z)
-% 
-% [x, z] = meshgrid(1:N, 0:M-1);
-% y = P * ones(M, N);
-% mesh(x,y,z)
+[y, z] = meshgrid(1:P, 0:M);
+x = zeros(M, P);
+mesh(x,y,z)
 
-% scatter3(xs,ys,zs);
-% mesh(xs, ys, zs);
-% plot3(xs,ys,zs);
+x = N * ones(M, P);
+mesh(x,y,z)
+
+%% perpendicular to y axis
+[x, z] = meshgrid(1:N, 0:M-1);
+y = zeros(M, N);
+mesh(x,y,z)
+
+[x, z] = meshgrid(1:N, 0:M-1);
+y = P * ones(M, N);
+mesh(x,y,z)
+
+scatter3(xs,ys,zs);
+mesh(xs, ys, zs);
+plot3(xs,ys,zs);
