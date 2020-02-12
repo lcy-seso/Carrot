@@ -8,11 +8,6 @@ from torch import Tensor
 
 from rnncell import LSTMCell
 
-random.seed(1234)
-torch.manual_seed(1234)
-if torch.cuda.is_available():
-    torch.cuda.manual_seed_all(1234)
-
 __all__ = [
     "gen_input_data",
     "model_def",
@@ -26,7 +21,7 @@ __all__ = [
 def build_args_parser():
     parser = argparse.ArgumentParser(
         description="Compare different implementation of stacked LSTM")
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=16)
     parser.add_argument("--input_dim", type=int, default=64)
     parser.add_argument("--hidden_dim", type=int, default=64)
     parser.add_argument("--grid_dim", type=int, default=2)
@@ -42,6 +37,11 @@ def gen_input_data(batch_size, input_dim, device, MIN_LEN=80, MAX_LEN=100):
         Input sequence batch, List[Tensor].
         The input data for GridLSTM for NMT task, which is a list of 2-D Tensor.
     """
+    random.seed(1234)
+    torch.manual_seed(1234)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(1234)
+
     src_array_batch = []
     trg_array_batch = []
     for i in range(batch_size):
@@ -117,6 +117,17 @@ def run_test(model_func):
         print("finish warmup.")
 
         start = time.time()
-        model_func(src_array_batch, trg_array_batch, cells, args.input_dim,
-                   args.hidden_dim, device)
-        print("%s total time = %.4f" % (device, time.time() - start))
+        gather_time, compute_time, scatter_time = model_func(
+            src_array_batch, trg_array_batch, cells, args.input_dim,
+            args.hidden_dim, device)
+        total = time.time() - start
+        print("%s total time = %.4f" % (device, total))
+        print("gather time = %.4f (%.2f%%)" % (gather_time, 100. *
+                                               (gather_time / total)))
+        print("compute time = %.4f (%.2f%%)" % (compute_time,
+                                                100. * compute_time / total))
+        print("scatter time = %.4f (%.2f%%)" % (scatter_time,
+                                                100. * scatter_time / total))
+        python_time = total - (gather_time + compute_time + scatter_time)
+        print("other Python codes = %.4f(%.2f%%)\n" % (python_time, 100. *
+                                                       (python_time / total)))

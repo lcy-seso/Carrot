@@ -45,6 +45,10 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
         for i in range(depth):
             outputs[-1].append(
                 init_out_buff(src_length, trg_length, hidden_dim, device))
+
+    gather_time = 0.
+    compute_time = 0.
+    scatter_time = 0.
     # data parallelism: iterate over samples in a batch.
     for sample_id in range(0, batch_size, 1):
         x = src_array_batch[sample_id]
@@ -104,6 +108,7 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
 
                     output_d[i][j][1].append(h_y)  # hidden for direction y
                     output_d[i][j][1].append(c_y)  # cell for direction y
+    return gather_time, compute_time, scatter_time
 
 
 if __name__ == "__main__":
