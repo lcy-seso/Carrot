@@ -96,7 +96,7 @@ def __batch(xs: List[Tensor], dim=0) -> Tensor:
 
 
 def __unbatch(x: Tensor, dim=0) -> List[Tensor]:
-    return [torch.narrow(x, 0, i, 1) for i in range(x.size()[0])]
+    return [torch.narrow(x, dim, i, 1) for i in range(x.size()[dim])]
 
 
 def run_test(model_func):
