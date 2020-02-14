@@ -120,5 +120,5 @@ if __name__ == "__main__":
             256,
             512,
     ]:
-        print("%%%%\nbatch_size = %d;" % (bs))  # for matlab codes.
+        print("\n%%%%\nbatch_size = %d;" % (bs))  # for matlab codes.
         test_compute_vs_data_movement(bs)
