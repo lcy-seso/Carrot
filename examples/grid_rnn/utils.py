@@ -92,12 +92,11 @@ def zero_states(hidden_dim, device):
 
 
 def __batch(xs: List[Tensor], dim=0) -> Tensor:
-    batch_size = len(xs)
-    return torch.reshape(torch.stack(xs, dim=dim), [batch_size, -1])
+    return torch.cat(xs, dim=dim)
 
 
 def __unbatch(x: Tensor, dim=0) -> List[Tensor]:
-    return [a_slice.view(1, -1) for a_slice in torch.unbind(x, dim=dim)]
+    return [torch.narrow(x, 0, i, 1) for i in range(x.size()[0])]
 
 
 def run_test(model_func):
