@@ -17,10 +17,10 @@ def gen_slices(hidden_size, batch_size, device, data_pool):
             for _ in range(batch_size)
         ]
 
-    rsize = data_pool[0].size()[0]
-    psize = len(data_pool)
+    row_size = data_pool[0].size()[0]
+    pool_size = len(data_pool)
     return [
-        data_pool[randint(0, psize - 1)][randint(0, rsize - 1), :].view(
+        data_pool[randint(0, pool_size - 1)][randint(0, row_size - 1), :].view(
             1, hidden_size) for _ in range(batch_size)
     ]
 
@@ -65,6 +65,7 @@ def test_compute_vs_data_movement(batch_size):
     ROW_SIZE = 128
     POOL_SIZE = 2048
 
+    repeat = 20
     hidden_sizes = [16, 32, 64, 128, 256, 512, 1024, 2048]
     for continuous in [
             True,
@@ -80,30 +81,21 @@ def test_compute_vs_data_movement(batch_size):
             unbind_time = [0.] * len(hidden_sizes)
             view_time = [0.] * len(hidden_sizes)
 
-            for i, size in enumerate(hidden_sizes):
-                data = create_data_pool((ROW_SIZE, size), POOL_SIZE, device,
-                                        continuous)
-                xs = gen_slices(size, batch_size, device, data)
+            for i, hidden_size in enumerate(hidden_sizes):
+                data = create_data_pool((ROW_SIZE, hidden_size), POOL_SIZE,
+                                        device, continuous)
+                xs = gen_slices(hidden_size, batch_size, device, data)
 
-                __make_test(
-                    size,
-                    batch_size,
-                    xs,
-                    i,
-                    stack_time,
-                    reshape_time,
-                    lstm_time,
-                    unbind_time,
-                    view_time,
-                    device,
-                    repeat=10)
+                __make_test(hidden_size, batch_size, xs, i, stack_time,
+                            reshape_time, lstm_time, unbind_time, view_time,
+                            device, repeat)
 
             # average and "s" to "ms"
-            stack_time = [x * 100. for x in stack_time]
-            reshape_time = [x * 100. for x in reshape_time]
-            lstm_time = [x * 100. for x in lstm_time]
-            unbind_time = [x * 100. for x in unbind_time]
-            view_time = [x * 100. for x in view_time]
+            stack_time = [x / repeat * 1000. for x in stack_time]
+            reshape_time = [x / repeat * 1000. for x in reshape_time]
+            lstm_time = [x / repeat * 1000. for x in lstm_time]
+            unbind_time = [x / repeat * 1000. for x in unbind_time]
+            view_time = [x / repeat * 1000. for x in view_time]
 
             out_info = [
                 ["stack", stack_time],
@@ -122,11 +114,11 @@ def test_compute_vs_data_movement(batch_size):
 if __name__ == "__main__":
     for bs in [
             16,
+            32,
             64,
             128,
             256,
             512,
-            1024,
     ]:
-        print("\nbatch_size = %d;" % (bs))
+        print("%%%%\nbatch_size = %d;" % (bs))  # for matlab codes.
         test_compute_vs_data_movement(bs)
