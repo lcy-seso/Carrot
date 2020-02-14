@@ -1,5 +1,4 @@
 from itertools import groupby
-import pdb
 import time
 
 from typing import List, Tuple
@@ -32,7 +31,6 @@ def grid_lstm_skew_to_outermost_loop(
     # ==================================================================== #
     src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
     trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
-    print("total sequence length = %d" % (sum(src_lens) + sum(trg_lens)))
 
     # `outputs` is the output buffer. A nested array with a depth 4 is used.
     outputs: List[List[List[List[Tensor]]]] = []
@@ -67,9 +65,7 @@ def grid_lstm_skew_to_outermost_loop(
     compute_time = 0.
     scatter_time = 0.
 
-    count = 0
     for z, value in groupby(trans_points, key=lambda x: x[0]):
-        count += 1
         cell_points = sorted(
             list(value), key=lambda x: x[2], reverse=False)  # sort by depth
         for d, data_points in groupby(cell_points, key=lambda x: x[2]):
@@ -90,12 +86,12 @@ def grid_lstm_skew_to_outermost_loop(
                 gather_points.append([sample_id, d, i, j])  # write position
 
                 if d == 0:
-                    #start_gather = time.time()
+                    start_gather = time.time()
                     x_t.append(src_array_batch[sample_id][i - 1, :].view(
                         1, input_dim))
                     y_t.append(trg_array_batch[sample_id][j - 1, :].view(
                         1, input_dim))
-                    #gather_time += (time.time() - start_gather)
+                    gather_time += (time.time() - start_gather)
                 else:
                     x_t.append(outputs[sample_id][d - 1][i][j][0][0])
                     y_t.append(outputs[sample_id][d - 1][i][j][1][0])
@@ -141,7 +137,6 @@ def grid_lstm_skew_to_outermost_loop(
                 outputs[sample_id][d][i][j][1].append(h_y[num])
                 outputs[sample_id][d][i][j][1].append(c_y[num])
 
-    print("group number = %d" % (count))
     return gather_time, compute_time, scatter_time
 
 
