@@ -1,6 +1,8 @@
+from time import time
 from itertools import groupby
 import numpy as np
 from typing import List, Tuple
+
 import torch
 from torch import Tensor
 from torch.nn import Module
@@ -67,12 +69,12 @@ def grid_lstm_skew_inner_3_loops(
 
         for z, value in groupby(trans_points, key=lambda x: x[0]):
             cell_points = sorted(
-                [p for p in value], key=lambda x: x[1], reverse=False)
+                list(value), key=lambda x: x[1], reverse=False)
 
             # all points in the same hyperplane can be executed in parallel
             for d, data_points in groupby(cell_points, key=lambda x: x[1]):
                 output_d = outputs[sample_id][d]
-                data_points = [d for d in data_points]
+                data_points = list(data_points)
 
                 # ========================================================== #
                 #   Batch parallelizable inputs and perform cell computation #
@@ -88,8 +90,10 @@ def grid_lstm_skew_inner_3_loops(
                     gather_points.append([d, i, j])  # write position
 
                     if d == 0:
+                        start_gather = time()
                         x_t.append(x[i - 1, :].view(1, input_dim))
                         y_t.append(y[j - 1, :].view(1, input_dim))
+                        gather_time += (time() - start_gather)
                     else:
                         x_t.append(outputs[sample_id][d - 1][i][j][0][0])
                         y_t.append(outputs[sample_id][d - 1][i][j][1][0])
@@ -97,6 +101,7 @@ def grid_lstm_skew_inner_3_loops(
                     states_x.append(output_d[i][j - 1][0])
                     states_y.append(output_d[i - 1][j][1])
 
+                start_gather = time()
                 # ======================================================= #
                 #   Batch inputs and perform cell computation             #
                 # ======================================================= #
@@ -108,9 +113,15 @@ def grid_lstm_skew_inner_3_loops(
                 h_y_prev = __batch([state[0] for state in states_y])
                 c_y_prev = __batch([state[1] for state in states_y])
 
+                start_compute = time()
+                gather_time += (start_compute - start_gather)
+
                 h = torch.cat((h_x_prev, h_y_prev), dim=1)
                 h_x, c_x = cells[d][0](x_t, (h, c_x_prev))
                 h_y, c_y = cells[d][1](y_t, (h, c_y_prev))
+
+                start_scatter = time()
+                compute_time += (start_scatter - start_compute)
 
                 # ========================================================== #
                 #           Scatter outputs                                  #
@@ -119,6 +130,8 @@ def grid_lstm_skew_inner_3_loops(
                 c_x = __unbatch(c_x)
                 h_y = __unbatch(h_y)
                 c_y = __unbatch(c_y)
+
+                scatter_time += (time() - start_scatter)
 
                 for num, (d, i, j) in enumerate(gather_points):
                     output_d[i][j][0].append(h_x[num])
