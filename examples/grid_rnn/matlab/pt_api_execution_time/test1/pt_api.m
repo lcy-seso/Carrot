@@ -130,7 +130,7 @@ t = title('LSTMCell vs. Data Movement on CPU');
 set(t, 'FontSize', font_size, 'FontName', 'Kefa');
 
 xticks(1:8)
-xticklabels({16, 32, 64, 128, 256, 512, 1024, 2048})
+xticklabels({16,32,64,128,256,512,1024,2048})
 xl = xlabel('hidden size');
 set(xl,'FontSize', font_size, 'FontName', 'Kefa', 'Interpreter','none');
 
@@ -184,3 +184,5 @@ lgd = legend([l1, l2, l3, l4],...
     'Location','southeast');
 legend('boxoff');
 lgd.FontSize = font_size;
+
+
