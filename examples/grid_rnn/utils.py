@@ -21,7 +21,7 @@ __all__ = [
 def build_args_parser():
     parser = argparse.ArgumentParser(
         description="Compare different implementation of stacked LSTM")
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--input_dim", type=int, default=64)
     parser.add_argument("--hidden_dim", type=int, default=64)
     parser.add_argument("--grid_dim", type=int, default=2)
@@ -92,12 +92,11 @@ def zero_states(hidden_dim, device):
 
 
 def __batch(xs: List[Tensor], dim=0) -> Tensor:
-    batch_size = len(xs)
-    return torch.reshape(torch.stack(xs, dim=dim), [batch_size, -1])
+    return torch.cat(xs, dim=dim)
 
 
 def __unbatch(x: Tensor, dim=0) -> List[Tensor]:
-    return [a_slice.view(1, -1) for a_slice in torch.unbind(x, dim=dim)]
+    return [torch.narrow(x, dim, i, 1) for i in range(x.size()[dim])]
 
 
 def run_test(model_func):

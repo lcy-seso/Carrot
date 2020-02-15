@@ -1,4 +1,6 @@
+from time import time
 from typing import List, Tuple
+
 import torch
 from torch import Tensor
 from torch.nn import Module
@@ -80,14 +82,17 @@ def grid_lstm_skew_inner_2_loops(
                     #   Batch parallelizable inputs and perform cell computation #
                     # ========================================================== #
                     if d == 0:
+                        start_gather = time()
                         x_t.append(x[i - 1, :].view(1, input_dim))
                         y_t.append(y[j - 1, :].view(1, input_dim))
+                        gather_time += (time() - start_gather)
                     else:
                         x_t.append(outputs[sample_id][d - 1][i][j][0][0])
                         y_t.append(outputs[sample_id][d - 1][i][j][1][0])
                     states_x.append(output_d[i][j - 1][0])
                     states_y.append(output_d[i - 1][j][1])
 
+                start_gather = time()
                 # ======================================================= #
                 #   Batch inputs and perform cell computation             #
                 # ======================================================= #
@@ -99,9 +104,15 @@ def grid_lstm_skew_inner_2_loops(
                 h_y_prev = __batch([state[0] for state in states_y])
                 c_y_prev = __batch([state[1] for state in states_y])
 
+                start_compute = time()
+                gather_time += (start_compute - start_gather)
+
                 h = torch.cat((h_x_prev, h_y_prev), dim=1)
                 h_x, c_x = cell_x(x_t, (h, c_x_prev))
                 h_y, c_y = cell_y(y_t, (h, c_y_prev))
+
+                start_scatter = time()
+                compute_time += (start_scatter - start_compute)
 
                 # ========================================================== #
                 #           Scatter outputs                                  #
@@ -110,6 +121,7 @@ def grid_lstm_skew_inner_2_loops(
                 c_x = __unbatch(c_x)
                 h_y = __unbatch(h_y)
                 c_y = __unbatch(c_y)
+                scatter_time += (time() - start_scatter)
 
                 for num, (i, j) in enumerate(gather_points):
                     output_d[i][j][0].append(h_x[num])
