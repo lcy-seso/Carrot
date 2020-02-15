@@ -18,3 +18,6 @@ colorSpec{12} = [0 191 255];
 
 colorSpec{13}= [139 69 19];
 colorSpec{14}= [160 82 45];
+
+% colorSpec{3} = [102 139 139];
+% colorSpec{4} = [150 205 205];
