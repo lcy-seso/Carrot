@@ -61,17 +61,14 @@ def grid_lstm_skew_to_outermost_loop(
                     trans_points.append([d + i + j, sample_id, d, i])
     trans_points = sorted(trans_points, key=lambda x: x[0], reverse=False)
 
-    gather_time = 0.
-    compute_time = 0.
-    scatter_time = 0.
-
     for z, value in groupby(trans_points, key=lambda x: x[0]):
         cell_points = sorted(
             list(value), key=lambda x: x[2], reverse=False)  # sort by depth
+
         for d, data_points in groupby(cell_points, key=lambda x: x[2]):
 
             # ===================================================== #
-            #            Gather parallelizable inputs               #
+            #            Gather parallelizable inputs
             # ===================================================== #
             data_points = list(data_points)
             x_t: List[Tensor] = []
@@ -86,12 +83,10 @@ def grid_lstm_skew_to_outermost_loop(
                 gather_points.append([sample_id, d, i, j])  # write position
 
                 if d == 0:
-                    start_gather = time()
                     x_t.append(src_array_batch[sample_id][i - 1, :].view(
                         1, input_dim))
                     y_t.append(trg_array_batch[sample_id][j - 1, :].view(
                         1, input_dim))
-                    gather_time += (time() - start_gather)
                 else:
                     x_t.append(outputs[sample_id][d - 1][i][j][0][0])
                     y_t.append(outputs[sample_id][d - 1][i][j][1][0])
@@ -99,10 +94,6 @@ def grid_lstm_skew_to_outermost_loop(
                 states_x.append(outputs[sample_id][d][i][j - 1][0])
                 states_y.append(outputs[sample_id][d][i - 1][j][1])
 
-            start_gather = time()
-            # ========================================================== #
-            #   Batch parallelizable inputs and perform cell computation #
-            # ========================================================== #
             x_t = __batch(x_t)
             y_t = __batch(y_t)
 
@@ -111,24 +102,20 @@ def grid_lstm_skew_to_outermost_loop(
             h_y_prev = __batch([state[0] for state in states_y])
             c_y_prev = __batch([state[1] for state in states_y])
 
-            start_compute = time()
-            gather_time += (start_compute - start_gather)
-
+            # ========================================================== #
+            #   Cell computation.
+            # ========================================================== #
             h = torch.cat((h_x_prev, h_y_prev), dim=1)
             h_x, c_x = cells[d][0](x_t, (h, c_x_prev))
             h_y, c_y = cells[d][1](y_t, (h, c_y_prev))
 
-            start_scatter = time()
-            compute_time += (start_scatter - start_compute)
-
             # ========================================================== #
-            #           Scatter outputs                                  #
+            #           Scatter outputs
             # ========================================================== #
             h_x = __unbatch(h_x)
             c_x = __unbatch(c_x)
             h_y = __unbatch(h_y)
             c_y = __unbatch(c_y)
-            scatter_time += (time() - start_scatter)
 
             for num, (sample_id, d, i, j) in enumerate(gather_points):
                 outputs[sample_id][d][i][j][0].append(h_x[num])
@@ -137,8 +124,21 @@ def grid_lstm_skew_to_outermost_loop(
                 outputs[sample_id][d][i][j][1].append(h_y[num])
                 outputs[sample_id][d][i][j][1].append(c_y[num])
 
-    return gather_time, compute_time, scatter_time
-
 
 if __name__ == "__main__":
     run_test(grid_lstm_skew_to_outermost_loop)
+
+    # import cProfile
+    # import pstats
+    # import io
+
+    # Profile python
+    # pr = cProfile.Profile()
+    # pr.enable()
+    # run_test(grid_lstm_skew_to_outermost_loop)
+    # pr.disable()
+    # s = io.StringIO()
+    # sortby = 'cumulative'
+    # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+    # ps.print_stats()
+    # print(s.getvalue())

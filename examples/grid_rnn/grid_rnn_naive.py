@@ -1,11 +1,8 @@
 """Forward computation of the Grid Long Short Term Memory network for NMT.
 
-Please refer to the paper "Kalchbrenner, Nal, Ivo Danihelka, and Alex Graves.
-"Grid long short-term memory." arXiv preprint arXiv:1507.01526 (2015)." for
-detail information.
+Please refer to the paper 'Kalchbrenner, Nal, Ivo Danihelka, and Alex Graves.
+Grid long short-term memory. arXiv preprint arXiv:1507.01526 (2015).' for details.
 """
-import time
-
 from typing import List, Tuple
 import torch
 from torch import Tensor
@@ -14,48 +11,24 @@ from torch.nn import Module
 from utils import *
 
 
-def naive_grid_lstm(src_array_batch: List[Tensor],
-                    trg_array_batch: List[Tensor], cells: List[Module],
-                    input_dim: int, hidden_dim: int, device: str):
-    """
-    Args:
-        src_array_batch: List[Tensor], input array for read access only,
-                                       the source sequence batch.
-        trg_array_batch: List[Tensor], input array for read access only,
-                                       the target sequence batch.
-        cells: List[callable], input array for read access only,
-                                       the cells to form depth.
-        input_dim: int, the input dimension of RNN cells.
-        hidden_dim: int, the output dimension of RNN cells.
-    """
-    # batch_size and depth are constants independent of data.
-    batch_size = len(src_array_batch)
-    depth = len(cells)
-
-    # ==================================================================== #
-    #                 Initialize output buffer                             #
-    # ==================================================================== #
-    src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
-    trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
-
-    # `outputs` is the output buffer. A nested array with a depth 4 is used.
-    outputs: List[List[List[List[Tensor]]]] = []
-    for src_length, trg_length in zip(src_lens, trg_lens):
-        outputs.append([])
-        for i in range(depth):
-            outputs[-1].append(
-                init_out_buff(src_length, trg_length, hidden_dim, device))
-
-    gather_time = 0.
-    compute_time = 0.
-    scatter_time = 0.
+def __loop_nest(
+        src_array_batch: List[Tensor],  # [In]: readonly array
+        trg_array_batch: List[Tensor],  # [In]: readonly array
+        cells: List[Module],  # [In]: readonly, sub computation graphs
+        depth: int,  # [In]: symbolic constants
+        batch_size: int,  # [In]: symbolic constants
+        input_dim: int,  # [In]: symbolic constants
+        src_lens: List[int],  # [In]: symbolic constants
+        trg_lens: List[int],  # [In]: symbolic constants
+        outputs: List[List[List[List[Tensor]]]]  # [Out]:
+):
     # data parallelism: iterate over samples in a batch.
     for sample_id in range(0, batch_size, 1):
         x = src_array_batch[sample_id]
         y = trg_array_batch[sample_id]
 
-        src_length = x.size()[0]
-        trg_length = y.size()[0]
+        src_length = src_lens[sample_id]
+        trg_length = trg_lens[sample_id]
 
         # dim 1: stack Grid LSTM Cell to form depth.
         for d in range(0, depth, 1):
@@ -108,7 +81,42 @@ def naive_grid_lstm(src_array_batch: List[Tensor],
 
                     output_d[i][j][1].append(h_y)  # hidden for direction y
                     output_d[i][j][1].append(c_y)  # cell for direction y
-    return gather_time, compute_time, scatter_time
+
+
+def naive_grid_lstm(src_array_batch: List[Tensor],
+                    trg_array_batch: List[Tensor], cells: List[Module],
+                    input_dim: int, hidden_dim: int, device: str):
+    """
+    Args:
+        src_array_batch: List[Tensor], input array for read access only,
+                                       the source sequence batch.
+        trg_array_batch: List[Tensor], input array for read access only,
+                                       the target sequence batch.
+        cells: List[callable], input array for read access only,
+                                       the cells to form depth.
+        input_dim: int, the input dimension of RNN cells.
+        hidden_dim: int, the output dimension of RNN cells.
+    """
+    # batch_size and depth are constants independent of data.
+    batch_size = len(src_array_batch)
+    depth = len(cells)
+
+    # ==================================================================== #
+    #                 Initialize output buffer                             #
+    # ==================================================================== #
+    src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
+    trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
+
+    # `outputs` is the output buffer. A nested array with a depth 4 is used.
+    outputs: List[List[List[List[Tensor]]]] = []
+    for src_length, trg_length in zip(src_lens, trg_lens):
+        outputs.append([])
+        for i in range(depth):
+            outputs[-1].append(
+                init_out_buff(src_length, trg_length, hidden_dim, device))
+
+    __loop_nest(src_array_batch, trg_array_batch, cells, depth, batch_size,
+                input_dim, src_lens, trg_lens, outputs)
 
 
 if __name__ == "__main__":

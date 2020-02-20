@@ -1,0 +1,151 @@
+graph(%self : ClassType<GridRNN>,
+      %src_array_batch.1 : Tensor[],
+      %trg_array_batch.1 : Tensor[],
+      %batch_size.1 : int,
+      %src_lens.1 : int[],
+      %trg_lens.1 : int[]):
+  %211 : bool = prim::Constant[value=0]() # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:95:36
+  %11 : bool = prim::Constant[value=1]() # test_grid_rnn.py:56:8
+  %7 : int = prim::Constant[value=0]() # test_grid_rnn.py:56:31
+  %9 : int = prim::Constant[value=1]() # test_grid_rnn.py:56:46
+  %83 : int = prim::Constant[value=2]() # test_grid_rnn.py:82:69
+  %sample_id_loop_output.1 : Tensor[][][][] = prim::ListConstruct()
+  %10 : int = aten::__range_length(%7, %batch_size.1, %9) # test_grid_rnn.py:56:8
+   = prim::Loop(%10, %11) # test_grid_rnn.py:56:8
+    block0(%12 : int):
+      %sample_id.1 : int = aten::__derive_index(%12, %7, %9) # test_grid_rnn.py:56:8
+      %x.1 : Tensor = aten::__getitem__(%src_array_batch.1, %sample_id.1) # test_grid_rnn.py:57:16
+      %y.1 : Tensor = aten::__getitem__(%trg_array_batch.1, %sample_id.1) # test_grid_rnn.py:58:16
+      %d_loop_output.1 : Tensor[][][] = prim::ListConstruct()
+      %21 : int = prim::GetAttr[name="depth"](%self)
+      %22 : int = aten::__range_length(%7, %21, %9) # test_grid_rnn.py:62:12
+       = prim::Loop(%22, %11) # test_grid_rnn.py:62:12
+        block0(%24 : int):
+          %d.1 : int = aten::__derive_index(%24, %7, %9) # test_grid_rnn.py:62:12
+          %i_loop_output.1 : Tensor[][] = prim::ListConstruct()
+          %29 : int = aten::__getitem__(%src_lens.1, %sample_id.1) # test_grid_rnn.py:67:34
+          %30 : int = aten::__range_length(%7, %29, %9) # test_grid_rnn.py:67:16
+           = prim::Loop(%30, %11) # test_grid_rnn.py:67:16
+            block0(%32 : int):
+              %i.1 : int = aten::__derive_index(%32, %7, %9) # test_grid_rnn.py:67:16
+              %j_loop_output.1 : Tensor[] = prim::ListConstruct()
+              %37 : int = aten::__getitem__(%trg_lens.1, %sample_id.1) # test_grid_rnn.py:71:38
+              %38 : int = aten::__range_length(%7, %37, %9) # test_grid_rnn.py:71:20
+               = prim::Loop(%38, %11) # test_grid_rnn.py:71:20
+                block0(%40 : int):
+                  %j.1 : int = aten::__derive_index(%40, %7, %9) # test_grid_rnn.py:71:20
+                  %43 : bool = aten::eq(%d.1, %7) # test_grid_rnn.py:72:27
+                  %x_t : Tensor, %y_t : Tensor = prim::If(%43) # test_grid_rnn.py:72:24
+                    block0():
+                      %x_t.1 : Tensor = aten::narrow(%x.1, %7, %i.1, %9) # test_grid_rnn.py:73:34
+                      %y_t.1 : Tensor = aten::narrow(%y.1, %7, %j.1, %9) # test_grid_rnn.py:74:34
+                      -> (%x_t.1, %y_t.1)
+                    block1():
+                      %52 : int = aten::sub(%d.1, %9) # test_grid_rnn.py:76:48
+                      %53 : Tensor[][] = aten::__getitem__(%d_loop_output.1, %52) # test_grid_rnn.py:76:34
+                      %55 : Tensor[] = aten::__getitem__(%53, %i.1) # test_grid_rnn.py:76:34
+                      %x_t.2 : Tensor = aten::__getitem__(%55, %j.1) # test_grid_rnn.py:76:34
+                      %60 : int = aten::sub(%d.1, %9) # test_grid_rnn.py:77:48
+                      %61 : Tensor[][] = aten::__getitem__(%d_loop_output.1, %60) # test_grid_rnn.py:77:34
+                      %63 : Tensor[] = aten::__getitem__(%61, %i.1) # test_grid_rnn.py:77:34
+                      %y_t.2 : Tensor = aten::__getitem__(%63, %j.1) # test_grid_rnn.py:77:34
+                      -> (%x_t.2, %y_t.2)
+                  %75 : bool = aten::eq(%i.1, %7) # test_grid_rnn.py:79:27
+                  %state_x : Tensor = prim::If(%75) # test_grid_rnn.py:79:24
+                    block0():
+                      %state_x.1 : Tensor = prim::GetAttr[name="init_state"](%self)
+                      -> (%state_x.1)
+                    block1():
+                      %79 : int = aten::sub(%i.1, %9) # test_grid_rnn.py:82:52
+                      %80 : Tensor[] = aten::__getitem__(%i_loop_output.1, %79) # test_grid_rnn.py:82:38
+                      %82 : int = aten::sub(%j.1, %9) # test_grid_rnn.py:82:60
+                      %84 : int = aten::mul(%82, %83) # test_grid_rnn.py:82:60
+                      %state_x.2 : Tensor = aten::__getitem__(%80, %84) # test_grid_rnn.py:82:38
+                      -> (%state_x.2)
+                  %91 : bool = aten::eq(%j.1, %7) # test_grid_rnn.py:84:27
+                  %state_y : Tensor = prim::If(%91) # test_grid_rnn.py:84:24
+                    block0():
+                      %state_y.1 : Tensor = prim::GetAttr[name="init_state"](%self)
+                      -> (%state_y.1)
+                    block1():
+                      %95 : int = aten::sub(%j.1, %9) # test_grid_rnn.py:87:53
+                      %96 : int = aten::mul(%95, %83) # test_grid_rnn.py:87:53
+                      %97 : int = aten::add(%96, %9) # test_grid_rnn.py:87:53
+                      %state_y.2 : Tensor = aten::__getitem__(%j_loop_output.1, %97) # test_grid_rnn.py:87:38
+                      -> (%state_y.2)
+                  %118 : bool = aten::eq(%d.1, %9) # test_grid_rnn.py:94:27
+                  %h_x : Tensor, %h_y : Tensor = prim::If(%118) # test_grid_rnn.py:94:24
+                    block0():
+                      %119 : ClassType<VanilaRNNCell> = prim::GetAttr[name="cell_x2"](%self)
+                      %h_prev.7 : Tensor = prim::If(%211) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:95:17
+                        block0():
+                          %213 : Tensor = prim::GetAttr[name="init_state"](%119)
+                          -> (%213)
+                        block1():
+                          -> (%state_x)
+                      %214 : Tensor = prim::GetAttr[name="W"](%119)
+                      %215 : Tensor = aten::mm(%x_t, %214) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %216 : Tensor = prim::GetAttr[name="U"](%119)
+                      %217 : Tensor = aten::mm(%h_prev.7, %216) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:38
+                      %218 : Tensor = aten::add(%215, %217, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %219 : Tensor = prim::GetAttr[name="b"](%119)
+                      %220 : Tensor = aten::add(%218, %219, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %h_x.2 : Tensor = aten::tanh(%220) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:96:15
+                      %123 : ClassType<VanilaRNNCell> = prim::GetAttr[name="cell_y2"](%self)
+                      %h_prev.8 : Tensor = prim::If(%211) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:95:17
+                        block0():
+                          %225 : Tensor = prim::GetAttr[name="init_state"](%123)
+                          -> (%225)
+                        block1():
+                          -> (%state_y)
+                      %226 : Tensor = prim::GetAttr[name="W"](%123)
+                      %227 : Tensor = aten::mm(%y_t, %226) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %228 : Tensor = prim::GetAttr[name="U"](%123)
+                      %229 : Tensor = aten::mm(%h_prev.8, %228) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:38
+                      %230 : Tensor = aten::add(%227, %229, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %231 : Tensor = prim::GetAttr[name="b"](%123)
+                      %232 : Tensor = aten::add(%230, %231, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %h_y.2 : Tensor = aten::tanh(%232) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:96:15
+                      -> (%h_x.2, %h_y.2)
+                    block1():
+                      %127 : ClassType<VanilaRNNCell> = prim::GetAttr[name="cell_x3"](%self)
+                      %h_prev.9 : Tensor = prim::If(%211) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:95:17
+                        block0():
+                          %237 : Tensor = prim::GetAttr[name="init_state"](%127)
+                          -> (%237)
+                        block1():
+                          -> (%state_x)
+                      %238 : Tensor = prim::GetAttr[name="W"](%127)
+                      %239 : Tensor = aten::mm(%x_t, %238) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %240 : Tensor = prim::GetAttr[name="U"](%127)
+                      %241 : Tensor = aten::mm(%h_prev.9, %240) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:38
+                      %242 : Tensor = aten::add(%239, %241, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %243 : Tensor = prim::GetAttr[name="b"](%127)
+                      %244 : Tensor = aten::add(%242, %243, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %h_x.3 : Tensor = aten::tanh(%244) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:96:15
+                      %131 : ClassType<VanilaRNNCell> = prim::GetAttr[name="cell_y3"](%self)
+                      %h_prev.4 : Tensor = prim::If(%211) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:95:17
+                        block0():
+                          %249 : Tensor = prim::GetAttr[name="init_state"](%131)
+                          -> (%249)
+                        block1():
+                          -> (%state_y)
+                      %250 : Tensor = prim::GetAttr[name="W"](%131)
+                      %251 : Tensor = aten::mm(%y_t, %250) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %252 : Tensor = prim::GetAttr[name="U"](%131)
+                      %253 : Tensor = aten::mm(%h_prev.4, %252) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:38
+                      %254 : Tensor = aten::add(%251, %253, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %255 : Tensor = prim::GetAttr[name="b"](%131)
+                      %256 : Tensor = aten::add(%254, %255, %9) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:97:12
+                      %h_y.3 : Tensor = aten::tanh(%256) # /home/yincao/codes/benchmarks/examples/grid_lstm/rnncell.py:96:15
+                      -> (%h_x.3, %h_y.3)
+                  %145 : Tensor[] = aten::append(%j_loop_output.1, %h_x) # test_grid_rnn.py:101:24
+                  %148 : Tensor[] = aten::append(%j_loop_output.1, %h_y) # test_grid_rnn.py:102:24
+                  -> (%11)
+              %151 : Tensor[][] = aten::append(%i_loop_output.1, %j_loop_output.1) # test_grid_rnn.py:104:20
+              -> (%11)
+          %154 : Tensor[][][] = aten::append(%d_loop_output.1, %i_loop_output.1) # test_grid_rnn.py:105:16
+          -> (%11)
+      %157 : Tensor[][][][] = aten::append(%sample_id_loop_output.1, %d_loop_output.1) # test_grid_rnn.py:111:12
+      -> (%11)
+  return (%sample_id_loop_output.1)
