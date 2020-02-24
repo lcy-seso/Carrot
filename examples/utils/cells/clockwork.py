@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 
 import torch
 from torch import Tensor
@@ -54,6 +54,7 @@ class ClockworkCell(Module):
         # constant tensors with the value zeros.
         self.register_buffer('zero_block', torch.zeros((block_size,
                                                         block_size)))
+        self.register_buffer('init_state', torch.zeros(1, self.hidden_size))
 
         self.hidden2hidden = []
         for i in range(self.block_num):
@@ -71,7 +72,10 @@ class ClockworkCell(Module):
         else:
             self.register_parameter('bias', None)
 
-    def forward(self, input: Tensor, state: Tensor, time_step: int):
+    def forward(self,
+                time_step: int,
+                input: Tensor,
+                state: Optional[Tensor] = None) -> Tensor:
         """
         Args:
             input: Tensor, input to current time step.
@@ -79,6 +83,9 @@ class ClockworkCell(Module):
             time_step: int, current time stpe. NOTE that the counter for
                        time_step MUST start with one.
         """
+        if state is None:
+            state = self.init_state
+
         # A hotfix to make constant lower-triangular blocks be on the device.
         for i in range(len(self.hidden2hidden)):
             if self.hidden2hidden[i] is None:
@@ -98,6 +105,6 @@ class ClockworkCell(Module):
             self.hidden2hidden[0:active_pivot * self.block_num],
             dim=0).reshape((-1, self.hidden_size))
 
-        hidden_partial = input.mm(i2h_act) + state.mm(h2h_act.t())
+        hidden_partial = input @ i2h_act + state @ h2h_act.t()
         return torch.tanh(
             torch.cat([hidden_partial, prev_unact], dim=1) + self.bias)
