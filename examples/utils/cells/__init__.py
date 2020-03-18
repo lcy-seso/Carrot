@@ -1,10 +1,12 @@
 from .clockwork import ClockworkCell
 from .mogrifier import MogLSTMCell
-from .vanila import VanilaRNNCell, VanilaRNNCell_
+from .vanilla import VanillaRNNCell, VanillaRNNCell_
+from .lstm import LSTMCell
 
 __all__ = [
     'ClockworkCell',
     'MogLSTMCell',
-    'VanilaRNNCell',
-    'VanilaRNNCell_',
+    'VanillaRNNCell',
+    'VanillaRNNCell_',
+    'LSTMCell',
 ]

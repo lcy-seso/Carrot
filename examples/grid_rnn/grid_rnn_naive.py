@@ -1,115 +1,146 @@
 """Forward computation of the Grid Long Short Term Memory network for NMT.
 
-Please refer to the paper "Kalchbrenner, Nal, Ivo Danihelka, and Alex Graves.
-"Grid long short-term memory." arXiv preprint arXiv:1507.01526 (2015)." for
-detail information.
+Please refer to the paper 'Kalchbrenner, Nal, Ivo Danihelka, and Alex Graves.
+Grid long short-term memory. arXiv preprint arXiv:1507.01526 (2015).' for details.
 """
-import time
+import os
+import sys
+sys.path.insert(0,
+                os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+import random
+from time import time
 from typing import List, Tuple
+
 import torch
 from torch import Tensor
 from torch.nn import Module
 
-from utils import *
+from data_utils import build_args_parser, gen_contiguous_input_data
+from utils import VanillaRNNCell
 
 
-def naive_grid_lstm(src_array_batch: List[Tensor],
-                    trg_array_batch: List[Tensor], cells: List[Module],
-                    input_dim: int, hidden_dim: int, device: str):
-    """
-    Args:
-        src_array_batch: List[Tensor], input array for read access only,
-                                       the source sequence batch.
-        trg_array_batch: List[Tensor], input array for read access only,
-                                       the target sequence batch.
-        cells: List[callable], input array for read access only,
-                                       the cells to form depth.
-        input_dim: int, the input dimension of RNN cells.
-        hidden_dim: int, the output dimension of RNN cells.
-    """
-    # batch_size and depth are constants independent of data.
-    batch_size = len(src_array_batch)
-    depth = len(cells)
+class GridRNNNaive(Module):
+    def __init__(self, input_size: int, hidden_size: int, grid_dim: int,
+                 cells_x: List[Module], cells_y: List[Module]):
+        super(GridRNNNaive, self).__init__()
 
-    # ==================================================================== #
-    #                 Initialize output buffer                             #
-    # ==================================================================== #
-    src_lens = [src_array_batch[i].size()[0] for i in range(batch_size)]
-    trg_lens = [trg_array_batch[i].size()[0] for i in range(batch_size)]
+        self.input_size = input_size
+        self.hidden_size = hidden_size
+        self.depth = len(cells_x)
 
-    # `outputs` is the output buffer. A nested array with a depth 4 is used.
-    outputs: List[List[List[List[Tensor]]]] = []
-    for src_length, trg_length in zip(src_lens, trg_lens):
-        outputs.append([])
-        for i in range(depth):
-            outputs[-1].append(
-                init_out_buff(src_length, trg_length, hidden_dim, device))
+        self.register_buffer('init_state', torch.zeros((1, hidden_size)))
 
-    gather_time = 0.
-    compute_time = 0.
-    scatter_time = 0.
-    # data parallelism: iterate over samples in a batch.
-    for sample_id in range(0, batch_size, 1):
-        x = src_array_batch[sample_id]
-        y = trg_array_batch[sample_id]
+        self.cells_x = cells_x
+        self.cells_y = cells_y
 
-        src_length = x.size()[0]
-        trg_length = y.size()[0]
+    def forward(
+            self,
+            src_array_batch: Tensor,
+            trg_array_batch: Tensor,
+            batch_size: int,  # [In]: symbolic constants
+            src_lens: List[int],  # [In]: symbolic constants
+            trg_lens: List[int]):  # [In]: symbolic constants
 
-        # dim 1: stack Grid LSTM Cell to form depth.
-        for d in range(0, depth, 1):
-            # dim 2: iterate over source sequence length.
-            for i in range(1, src_length + 1, 1):
-                # dim 3: iterate over target sequence length.
-                for j in range(1, trg_length + 1, 1):
-                    # ===================================== #
-                    #    READ access to input arrays to     #
-                    #    get inputs to iteration (d, i, j)  #
-                    # ===================================== #
-                    cell_x = cells[d][0]
-                    cell_y = cells[d][1]
+        # data parallelism: iterate over samples in a batch.
+        sample_id_loop_output: List[List[List[List[Tensor]]]] = []
+        for sample_id in range(0, batch_size, 1):
+            x = src_array_batch[sample_id]
+            y = trg_array_batch[sample_id]
 
-                    output_d = outputs[sample_id][d]
+            # dim 1: stack Grid LSTM Cell to form depth.
+            d_loop_output: List[List[List[Tensor]]] = []
+            for d in range(0, self.depth, 1):
+                cell_x = self.cells_x[d]
+                cell_y = self.cells_y[d]
 
-                    if d == 0:
-                        x_t = x[i - 1, :].view(1, input_dim)
-                        y_t = y[j - 1, :].view(1, input_dim)
-                    else:
-                        # ================================================ #
-                        # NOTE:  when d > 0, x_t and y_t are inputs in the #
-                        # depth direction, though we do not apply          #
-                        # learnable projections to the depth direction in  #
-                        # current implementation, the depth direction can  #
-                        # also form recurrent computation.                 #
-                        # ================================================ #
-                        x_t = outputs[sample_id][d - 1][i][j][0][0]
-                        y_t = outputs[sample_id][d - 1][i][j][1][0]
-                    states_x = output_d[i][j - 1][0]
-                    states_y = output_d[i - 1][j][1]
+                # dim 2: iterate over source sequence length.
+                i_loop_output: List[List[Tensor]] = []  # write buffer
+                for i in range(0, src_lens[sample_id], 1):
+                    # dim 3: iterate over target sequence length.
 
-                    # =========================================== #
-                    #    cell computation in iteration (d, i, j)  #
-                    # =========================================== #
-                    h_x_prev, c_x_prev = states_x
-                    h_y_prev, c_y_prev = states_y
+                    j_loop_output: List[Tensor] = []  # write buffer for j loop
+                    for j in range(0, trg_lens[sample_id], 1):
+                        if d == 0:
+                            x_t = torch.narrow(x, dim=0, start=i, length=1)
+                            y_t = torch.narrow(y, dim=0, start=j, length=1)
+                        else:
+                            x_t = d_loop_output[d - 1][i][(j - 1) * 2]
+                            y_t = d_loop_output[d - 1][i][(j - 1) * 2 + 1]
 
-                    h = torch.cat((h_x_prev, h_y_prev), dim=1)
-                    h_x, c_x = cell_x(x_t, (h, c_x_prev))
-                    h_y, c_y = cell_y(y_t, (h, c_y_prev))
+                        if i == 0:
+                            state_x = self.init_state
+                        else:
+                            state_x = i_loop_output[i - 1][(j - 1) * 2]
 
-                    # ================================================== #
-                    #    WRITE access to the output array to             #
-                    #    save produced results in iteration (d, i, j)    #
-                    # ================================================== #
+                        if j == 0:
+                            state_y = self.init_state
+                        else:
+                            state_y = j_loop_output[(j - 1) * 2 + 1]
 
-                    output_d[i][j][0].append(h_x)  # hidden for direction x
-                    output_d[i][j][0].append(c_x)  # cell for direction x
+                        state = torch.cat([state_x, state_y], dim=1)
+                        h_x = cell_x(x_t, state_x)
+                        h_y = cell_y(y_t, state_y)
 
-                    output_d[i][j][1].append(h_y)  # hidden for direction y
-                    output_d[i][j][1].append(c_y)  # cell for direction y
-    return gather_time, compute_time, scatter_time
+                        j_loop_output.append(h_x)
+                        j_loop_output.append(h_y)
+
+                    i_loop_output.append(j_loop_output)
+                d_loop_output.append(i_loop_output)
+                """ multi-directional
+                for i in range(src_lens[sample_id], 0, -1):
+                    for j in range(trg_lens[sample_id], 0, -1):
+                        # ------------- DO something --------------
+                """
+            sample_id_loop_output.append(d_loop_output)
+        return sample_id_loop_output
+
+
+def test_naive(args, grid_dim, device):
+    src_array_batch, trg_array_batch = gen_contiguous_input_data(
+        args.batch_size,
+        args.input_size,
+        args.min_len,
+        args.max_len,
+        device=device)
+    src_lens = [x.size()[0] for x in src_array_batch]
+    trg_lens = [x.size()[0] for x in trg_array_batch]
+
+    cells_x = [
+        VanillaRNNCell(args.input_size, args.hidden_size).to(device)
+        for _ in range(args.depth)
+    ]
+    cells_y = [
+        VanillaRNNCell(args.input_size, args.hidden_size).to(device)
+        for _ in range(args.depth)
+    ]
+
+    m = GridRNNNaive(args.input_size, args.hidden_size, grid_dim, cells_x,
+                     cells_y).to(device)
+    m(src_array_batch=src_array_batch,
+      trg_array_batch=trg_array_batch,
+      batch_size=len(src_array_batch),
+      src_lens=src_lens,
+      trg_lens=trg_lens)
+
+    print("Finish warmup. Start timing.")
+    start = time()
+    m(src_array_batch=src_array_batch,
+      trg_array_batch=trg_array_batch,
+      batch_size=len(src_array_batch),
+      src_lens=src_lens,
+      trg_lens=trg_lens)
+    print("Time elapse = %.6f" % (time() - start))
 
 
 if __name__ == "__main__":
-    run_test(naive_grid_lstm)
+    args = build_args_parser()
+    grid_dim = 2  # Current implementation fixes the grid dim to be 2.
+
+    for device in [
+            'cpu',
+            'cuda',
+    ]:
+        print('\n---------------------------------------------------------')
+        print(f'Run test on {device}.')
+        test_naive(args, grid_dim, device)
