@@ -1,4 +1,4 @@
-"""Forward computation of the clockwork RNN.
+"""Naive implementation of the clockwork RNN.
 
 Please refer to the paper 'Koutnik, Jan, et al. A clockwork rnn.
 arXiv preprint arXiv:1402.3511 (2014).' for details.
@@ -19,7 +19,7 @@ from utils import ClockworkCell, gen_sequence_batch
 
 
 class StackedClockworkRNN(Module):
-    """The Clockwork recurrent network"""
+    """The Clockwork recurrent network."""
 
     def __init__(self, cells: List[Module]):
         super(StackedClockworkRNN, self).__init__()

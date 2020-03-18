@@ -7,19 +7,19 @@ from torch.nn.init import xavier_normal_, zeros_
 from torch.nn import Module
 
 __all__ = [
-    'VanilaRNNCell',
-    'VanilaRNNCell_',
+    'VanillaRNNCell',
+    'VanillaRNNCell_',
 ]
 
 
-class VanilaRNNCell(Module):
-    """Cell computation of the Vanila RNN.
+class VanillaRNNCell(Module):
+    """Cell computation of the Vanilla RNN.
 
     This implementation can be automatically differentiated.
     """
 
     def __init__(self, input_size, hidden_size):
-        super(VanilaRNNCell, self).__init__()
+        super(VanillaRNNCell, self).__init__()
         # learnable paramters
         self.W = Parameter(Tensor(input_size, hidden_size))
         self.U = Parameter(Tensor(hidden_size, hidden_size))
@@ -52,17 +52,18 @@ class VanilaRNNCell(Module):
             torch.mm(input, self.W) + torch.mm(h_prev, self.U) + self.b)
 
 
-class VanilaRNNCell_(object):
-    """Inplace version. Cell computation of a Vanila RNN.
+class VanillaRNNCell_(object):
+    """Inplace version. Cell computation of a Vanilla RNN.
 
     NOTE: This implementation cannot be automatically differentiated.
     """
 
     def __init__(self, input_size, hidden_size, device, grid_dim=1):
-        super(VanilaRNNCell_, self).__init__()
+        super(VanillaRNNCell_, self).__init__()
         # learnable paramters
-        self.W = xavier(torch.empty(input_size, hidden_size, device=device))
-        self.U = xavier(
+        self.W = xavier_normal_(
+            torch.empty(input_size, hidden_size, device=device))
+        self.U = xavier_normal_(
             torch.empty(hidden_size * grid_dim, hidden_size, device=device))
         self.b = torch.ones(1, hidden_size, device=device)
 
@@ -70,7 +71,7 @@ class VanilaRNNCell_(object):
 
     def forward(self, out: Tensor, x: Tensor,
                 h_prev: Optional[Tensor] = None) -> Tensor:
-        """Cell computation of a Vanila RNN.
+        """Cell computation of a Vanilla RNN.
         Args:
             input, Tensor, input to current time step with a shape of
                 [batch_size, input_size].
@@ -79,7 +80,7 @@ class VanilaRNNCell_(object):
         Returns:
             Hidden states of current time step.
         """
-        h = torch.mm(x, self.W) + torch.mm(h_prev, self.U) + self.b
+        h = x @ self.W + h_prev @ self.U + self.b
         # The return value is actually out
         return torch.tanh(h, out=out)
 

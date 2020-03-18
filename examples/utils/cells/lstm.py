@@ -2,8 +2,9 @@ from typing import List, Tuple
 
 import torch
 import torch.nn as nn
-from torch.nn.init import xavier_normal_ as init
+from torch.nn.init import xavier_normal_, zeros_
 from torch import Tensor
+from torch.nn import Parameter
 
 __all__ = [
     "LSTMCell",
@@ -14,24 +15,33 @@ class LSTMCell(nn.Module):
     def __init__(self, i2h_shape: List[int], h2h_shape: List[int]):
         super(LSTMCell, self).__init__()
         # learnable paramters for input gate.
-        self.Wi = init(nn.Parameter(torch.empty(i2h_shape)))
-        self.Ui = init(nn.Parameter(torch.empty(h2h_shape)))
-        self.bi = nn.Parameter(torch.ones(h2h_shape[1]))
+        self.Wi = Parameter(torch.empty(i2h_shape))
+        self.Ui = Parameter(torch.empty(h2h_shape))
+        self.bi = Parameter(torch.ones(h2h_shape[1]))
 
         # learnable paramters for forget gate.
-        self.Wf = init(nn.Parameter(torch.empty(i2h_shape)))
-        self.Uf = init(nn.Parameter(torch.empty(h2h_shape)))
-        self.bf = nn.Parameter(torch.ones(h2h_shape[1]))
+        self.Wf = Parameter(torch.empty(i2h_shape))
+        self.Uf = Parameter(torch.empty(h2h_shape))
+        self.bf = Parameter(h2h_shape[1])
 
         # learnable paramters for cell candidate.
-        self.Wg = init(nn.Parameter(torch.empty(i2h_shape)))
-        self.Ug = init(nn.Parameter(torch.empty(h2h_shape)))
-        self.bg = nn.Parameter(torch.ones(h2h_shape[1]))
+        self.Wg = Parameter(torch.empty(i2h_shape))
+        self.Ug = Parameter(torch.empty(h2h_shape))
+        self.bg = Parameter(h2h_shape[1])
 
         # learnable paramters for output gate.
-        self.Wo = init(nn.Parameter(torch.empty(i2h_shape)))
-        self.Uo = init(nn.Parameter(torch.empty(h2h_shape)))
-        self.bo = nn.Parameter(torch.ones(h2h_shape[1]))
+        self.Wo = Parameter(torch.empty(i2h_shape))
+        self.Uo = Parameter(torch.empty(h2h_shape))
+        self.bo = Parameter(h2h_shape[1])
+
+        self.init_weights()
+
+    def init_weights(self):
+        for p in self.parameters():
+            if p.data.ndimension() >= 2:
+                xavier_normal_(p.data)
+            else:
+                zeros_(p.data)
 
     def forward(self, input: Tensor,
                 state_prev: Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tensor]:

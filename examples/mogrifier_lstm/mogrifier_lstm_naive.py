@@ -1,7 +1,7 @@
-"""Forward computation of the clockwork RNN.
+"""Naive implementation of the mogrifier LSTM.
 
-Please refer to the paper 'Koutnik, Jan, et al. A clockwork rnn.
-arXiv preprint arXiv:1402.3511 (2014).' for details.
+Please refere to the paper 'Melis G, Kočis T, Blunsom P. Mogrifier lstm[J].
+arXiv preprint arXiv:1909.01792, 2019' for detailed information.
 """
 import os
 import sys
@@ -53,7 +53,7 @@ class StackedRNN(Module):
         return bs_loop_output
 
 
-@click.command('Build the clockwork RNN model.')
+@click.command('Build the Mogrifier RNN model.')
 @click.option(
     '--batch_size',
     type=int,
@@ -98,8 +98,8 @@ def run(input_size, hidden_size, depth, batch_size, min_len, max_len,
         m(seq_batch, seq_lens)
         start = time()
         m(seq_batch, seq_lens)
-        print(
-            f'{device} execution, time elaspe = %.6f (s).' % (time() - start))
+        print((f'{device} execution, '
+               'time elaspe = %.6f (s).') % (time() - start))
 
 
 if __name__ == "__main__":
