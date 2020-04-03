@@ -1,0 +1,115 @@
+graph(%self : __torch__.StackedLSTM,
+      %input_seq.1 : Tensor[][],
+      %lens.1 : int[],
+      %batch_size.1 : int,
+      %depth : int):
+  %58 : int = prim::Constant[value=-1]() # stacked_lstm.py:49:42
+  %9 : bool = prim::Constant[value=1]() # stacked_lstm.py:34:8
+  %26 : int = prim::Constant[value=0]() # stacked_lstm.py:37:12
+  %output_i.1 : Tensor[][][] = prim::ListConstruct()
+   = prim::Loop(%batch_size.1, %9) # stacked_lstm.py:34:8
+    block0(%i.1 : int):
+      %output_j.1 : Tensor[][] = prim::ListConstruct()
+      %13 : __torch__.torch.nn.modules.container.ModuleList = prim::GetAttr[name="cells"](%self)
+      %15 : __torch__.utils.cells.vanilla.VanillaRNNCell = prim::GetAttr[name="0"](%13)
+      %17 : __torch__.utils.cells.vanilla.VanillaRNNCell = prim::GetAttr[name="1"](%13)
+      %19 : __torch__.utils.cells.vanilla.VanillaRNNCell = prim::GetAttr[name="2"](%13)
+      %21 : __torch__.utils.cells.vanilla.VanillaRNNCell = prim::GetAttr[name="3"](%13)
+      %23 : __torch__.utils.cells.vanilla.VanillaRNNCell = prim::GetAttr[name="4"](%13)
+      %output_k.1 : Tensor[] = prim::ListConstruct()
+      %30 : int = aten::__getitem__(%lens.1, %i.1) # stacked_lstm.py:40:31
+       = prim::Loop(%30, %9) # stacked_lstm.py:40:16
+        block0(%t.1 : int):
+          %39 : Tensor[] = aten::__getitem__(%input_seq.1, %i.1) # stacked_lstm.py:42:28
+          %x.1 : Tensor = aten::__getitem__(%39, %t.1) # stacked_lstm.py:42:28
+          %54 : bool = aten::eq(%t.1, %26) # stacked_lstm.py:46:23
+          %h_prev.36 : Tensor = prim::If(%54) # stacked_lstm.py:46:20
+            block0():
+              %h_prev.1 : Tensor = prim::GetAttr[name="init_state"](%self)
+              -> (%h_prev.1)
+            block1():
+              %h_prev.2 : Tensor = aten::__getitem__(%output_k.1, %58) # stacked_lstm.py:49:33
+              -> (%h_prev.2)
+          %h.1 : Tensor = prim::CallMethod[name="forward"](%15, %x.1, %h_prev.36) # stacked_lstm.py:51:24
+          %69 : Tensor[] = aten::append(%output_k.1, %h.1) # stacked_lstm.py:52:20
+          -> (%9)
+      %72 : Tensor[][] = aten::append(%output_j.1, %output_k.1) # stacked_lstm.py:53:16
+      %output_k.5 : Tensor[] = prim::ListConstruct()
+      %76 : int = aten::__getitem__(%lens.1, %i.1) # stacked_lstm.py:40:31
+       = prim::Loop(%76, %9) # stacked_lstm.py:40:16
+        block0(%t.5 : int):
+          %301 : int = prim::Constant[value=0]()
+          %91 : Tensor[] = aten::__getitem__(%output_j.1, %301) # stacked_lstm.py:44:28
+          %x.9 : Tensor = aten::__getitem__(%91, %t.5) # stacked_lstm.py:44:28
+          %99 : bool = aten::eq(%t.5, %26) # stacked_lstm.py:46:23
+          %h_prev.37 : Tensor = prim::If(%99) # stacked_lstm.py:46:20
+            block0():
+              %h_prev.8 : Tensor = prim::GetAttr[name="init_state"](%self)
+              -> (%h_prev.8)
+            block1():
+              %h_prev.9 : Tensor = aten::__getitem__(%output_k.5, %58) # stacked_lstm.py:49:33
+              -> (%h_prev.9)
+          %h.3 : Tensor = prim::CallMethod[name="forward"](%17, %x.9, %h_prev.37) # stacked_lstm.py:51:24
+          %114 : Tensor[] = aten::append(%output_k.5, %h.3) # stacked_lstm.py:52:20
+          -> (%9)
+      %117 : Tensor[][] = aten::append(%output_j.1, %output_k.5) # stacked_lstm.py:53:16
+      %output_k.9 : Tensor[] = prim::ListConstruct()
+      %122 : int = aten::__getitem__(%lens.1, %i.1) # stacked_lstm.py:40:31
+       = prim::Loop(%122, %9) # stacked_lstm.py:40:16
+        block0(%t.9 : int):
+          %303 : int = prim::Constant[value=1]()
+          %137 : Tensor[] = aten::__getitem__(%output_j.1, %303) # stacked_lstm.py:44:28
+          %x.16 : Tensor = aten::__getitem__(%137, %t.9) # stacked_lstm.py:44:28
+          %145 : bool = aten::eq(%t.9, %26) # stacked_lstm.py:46:23
+          %h_prev.38 : Tensor = prim::If(%145) # stacked_lstm.py:46:20
+            block0():
+              %h_prev.15 : Tensor = prim::GetAttr[name="init_state"](%self)
+              -> (%h_prev.15)
+            block1():
+              %h_prev.16 : Tensor = aten::__getitem__(%output_k.9, %58) # stacked_lstm.py:49:33
+              -> (%h_prev.16)
+          %h.5 : Tensor = prim::CallMethod[name="forward"](%19, %x.16, %h_prev.38) # stacked_lstm.py:51:24
+          %160 : Tensor[] = aten::append(%output_k.9, %h.5) # stacked_lstm.py:52:20
+          -> (%9)
+      %163 : Tensor[][] = aten::append(%output_j.1, %output_k.9) # stacked_lstm.py:53:16
+      %output_k.13 : Tensor[] = prim::ListConstruct()
+      %168 : int = aten::__getitem__(%lens.1, %i.1) # stacked_lstm.py:40:31
+       = prim::Loop(%168, %9) # stacked_lstm.py:40:16
+        block0(%t.13 : int):
+          %305 : int = prim::Constant[value=2]()
+          %183 : Tensor[] = aten::__getitem__(%output_j.1, %305) # stacked_lstm.py:44:28
+          %x.23 : Tensor = aten::__getitem__(%183, %t.13) # stacked_lstm.py:44:28
+          %191 : bool = aten::eq(%t.13, %26) # stacked_lstm.py:46:23
+          %h_prev.39 : Tensor = prim::If(%191) # stacked_lstm.py:46:20
+            block0():
+              %h_prev.22 : Tensor = prim::GetAttr[name="init_state"](%self)
+              -> (%h_prev.22)
+            block1():
+              %h_prev.23 : Tensor = aten::__getitem__(%output_k.13, %58) # stacked_lstm.py:49:33
+              -> (%h_prev.23)
+          %h.7 : Tensor = prim::CallMethod[name="forward"](%21, %x.23, %h_prev.39) # stacked_lstm.py:51:24
+          %206 : Tensor[] = aten::append(%output_k.13, %h.7) # stacked_lstm.py:52:20
+          -> (%9)
+      %209 : Tensor[][] = aten::append(%output_j.1, %output_k.13) # stacked_lstm.py:53:16
+      %output_k.17 : Tensor[] = prim::ListConstruct()
+      %214 : int = aten::__getitem__(%lens.1, %i.1) # stacked_lstm.py:40:31
+       = prim::Loop(%214, %9) # stacked_lstm.py:40:16
+        block0(%t.17 : int):
+          %307 : int = prim::Constant[value=3]()
+          %229 : Tensor[] = aten::__getitem__(%output_j.1, %307) # stacked_lstm.py:44:28
+          %x.30 : Tensor = aten::__getitem__(%229, %t.17) # stacked_lstm.py:44:28
+          %237 : bool = aten::eq(%t.17, %26) # stacked_lstm.py:46:23
+          %h_prev : Tensor = prim::If(%237) # stacked_lstm.py:46:20
+            block0():
+              %h_prev.29 : Tensor = prim::GetAttr[name="init_state"](%self)
+              -> (%h_prev.29)
+            block1():
+              %h_prev.30 : Tensor = aten::__getitem__(%output_k.17, %58) # stacked_lstm.py:49:33
+              -> (%h_prev.30)
+          %h.9 : Tensor = prim::CallMethod[name="forward"](%23, %x.30, %h_prev) # stacked_lstm.py:51:24
+          %252 : Tensor[] = aten::append(%output_k.17, %h.9) # stacked_lstm.py:52:20
+          -> (%9)
+      %255 : Tensor[][] = aten::append(%output_j.1, %output_k.17) # stacked_lstm.py:53:16
+      %258 : Tensor[][][] = aten::append(%output_i.1, %output_j.1) # stacked_lstm.py:54:12
+      -> (%9)
+  return (%output_i.1)
